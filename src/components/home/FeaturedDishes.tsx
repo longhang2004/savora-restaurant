@@ -39,7 +39,7 @@ export default function FeaturedDishes() {
               delay={index * 0.15}
               className={styles.cardWrapper}
             >
-              <div className={`${styles.card} glassmorphism`}>
+              <div className={`${styles.card} glassmorphism card-hover-effect`}>
                 <div className={styles.imgContainer}>
                   <Image
                     src={dish.image}

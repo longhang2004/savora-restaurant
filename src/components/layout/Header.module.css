@@ -5,8 +5,13 @@
   width: 100%;
   z-index: 50;
   padding: 1.5rem 0;
-  transition: padding var(--transition-medium), background-color var(--transition-medium), backdrop-filter var(--transition-medium), border-color var(--transition-medium);
+  transition: padding var(--transition-medium), background-color var(--transition-medium), backdrop-filter var(--transition-medium), border-color var(--transition-medium), transform var(--transition-medium);
   border-bottom: 1px solid transparent;
+}
+
+.hidden {
+  transform: translateY(-100%);
+  pointer-events: none;
 }
 
 .scrolled {

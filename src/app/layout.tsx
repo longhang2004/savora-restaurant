@@ -128,6 +128,8 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <div className="ambient-glow-1" />
+        <div className="ambient-glow-2" />
         <Header />
         <main style={{ minHeight: '80vh', paddingTop: '80px' }}>
           {children}

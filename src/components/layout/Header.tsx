@@ -18,20 +18,25 @@ const navItems = [
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [visible, setVisible] = useState(true);
+  const [prevScrollPos, setPrevScrollPos] = useState(0);
   const pathname = usePathname();
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 20) {
-        setScrolled(true);
-      } else {
-        setScrolled(false);
-      }
+      const currentScrollPos = window.scrollY;
+      
+      // Scrolled threshold for solid background
+      setScrolled(currentScrollPos > 50);
+      
+      // Header visibility
+      setVisible(prevScrollPos > currentScrollPos || currentScrollPos < 50);
+      setPrevScrollPos(currentScrollPos);
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [prevScrollPos]);
 
   // Close mobile menu on path change
   useEffect(() => {
@@ -49,7 +54,7 @@ export default function Header() {
 
   return (
     <>
-      <header className={`${styles.header} ${scrolled ? styles.scrolled : ''}`}>
+      <header className={`${styles.header} ${scrolled ? styles.scrolled : ''} ${!visible ? styles.hidden : ''}`}>
         <div className={styles.container}>
           {/* Logo */}
           <Link href="/" className={styles.logo}>

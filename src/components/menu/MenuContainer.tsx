@@ -79,15 +79,15 @@ export default function MenuContainer() {
 
             {/* Menu Grid */}
             <motion.div layout className={styles.menuGrid}>
-              <AnimatePresence mode="popLayout">
-                {filteredItems.map((item) => (
+              <AnimatePresence mode="wait">
+                {filteredItems.map((item, index) => (
                   <motion.div
                     layout
                     key={item.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.4 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.35, delay: index * 0.05 }}
                     className={styles.gridItemWrapper}
                   >
                     <div className={`${styles.menuCard} glassmorphism card-hover-effect`}>

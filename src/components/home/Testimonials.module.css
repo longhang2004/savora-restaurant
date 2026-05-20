@@ -77,6 +77,12 @@
   align-items: center;
   text-align: center;
   position: relative;
+  transition: box-shadow var(--transition-medium);
+  border: 1px solid rgba(var(--accent-gold-rgb), 0.08);
+}
+
+.slideCard:hover {
+  box-shadow: 0 0 40px rgba(var(--accent-gold-rgb), 0.06);
 }
 
 @media (min-width: 768px) {
@@ -86,10 +92,10 @@
 }
 
 .quoteIcon {
-  color: rgba(200, 155, 60, 0.15);
-  width: 50px;
-  height: 50px;
-  margin-bottom: 1.5rem;
+  color: rgba(200, 155, 60, 0.12);
+  width: 60px;
+  height: 60px;
+  margin-bottom: 2rem;
 }
 
 .rating {

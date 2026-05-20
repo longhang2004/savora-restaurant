@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { menuItems } from '@/data/menu';
 import { generateMenuSchema } from '@/lib/structured-data';
 import ScrollReveal from '@/components/ui/ScrollReveal';
+import Ornament from '@/components/ui/Ornament';
 import styles from './MenuContainer.module.css';
 
 const categories = [
@@ -41,6 +42,9 @@ export default function MenuContainer() {
           <div className="container">
             <ScrollReveal direction="up">
               <span className={styles.kicker}>Taste the Art</span>
+            </ScrollReveal>
+            <ScrollReveal direction="none" delay={0.05}>
+              <Ornament />
             </ScrollReveal>
             <ScrollReveal direction="up" delay={0.1}>
               <h1 className={`${styles.title} text-gradient`}>Our Culinary Canvas</h1>

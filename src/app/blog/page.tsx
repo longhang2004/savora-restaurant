@@ -5,6 +5,7 @@ import { Clock, User, ArrowRight } from 'lucide-react';
 import { blogPosts } from '@/data/blog-posts';
 import { generatePageMetadata } from '@/lib/metadata';
 import ScrollReveal from '@/components/ui/ScrollReveal';
+import Ornament from '@/components/ui/Ornament';
 import styles from './page.module.css';
 
 export const metadata = generatePageMetadata({
@@ -21,6 +22,9 @@ export default function BlogPage() {
         <div className="container">
           <ScrollReveal direction="up">
             <span className={styles.kicker}>The Savora Journal</span>
+          </ScrollReveal>
+          <ScrollReveal direction="none" delay={0.05}>
+            <Ornament />
           </ScrollReveal>
           <ScrollReveal direction="up" delay={0.1}>
             <h1 className={`${styles.title} text-gradient`}>Culinary Stories & Insights</h1>
@@ -44,7 +48,7 @@ export default function BlogPage() {
                 delay={index * 0.1}
                 className={styles.cardWrapper}
               >
-                <article className={`${styles.card} glassmorphism`}>
+                <article className={`${styles.card} glassmorphism card-hover-effect`}>
                   <div className={styles.imgWrapper}>
                     <Image
                       src={post.image}

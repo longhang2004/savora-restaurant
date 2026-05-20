@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Star, Quote } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { testimonials } from '@/data/testimonials';
 import ScrollReveal from '../ui/ScrollReveal';
+import Ornament from '../ui/Ornament';
 import styles from './Testimonials.module.css';
 
 export default function Testimonials() {
@@ -28,6 +29,9 @@ export default function Testimonials() {
         <div className={styles.header}>
           <ScrollReveal direction="up">
             <span className={styles.kicker}>Reviews</span>
+          </ScrollReveal>
+          <ScrollReveal direction="none" delay={0.05}>
+            <Ornament />
           </ScrollReveal>
           <ScrollReveal direction="up" delay={0.1}>
             <h2 className={styles.title}>Guest Experiences</h2>

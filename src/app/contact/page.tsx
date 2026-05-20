@@ -2,6 +2,7 @@ import React from 'react';
 import { generatePageMetadata } from '@/lib/metadata';
 import ContactForm from '@/components/contact/ContactForm';
 import ScrollReveal from '@/components/ui/ScrollReveal';
+import Ornament from '@/components/ui/Ornament';
 import { Mail, Phone, MapPin, Clock, Compass } from 'lucide-react';
 import styles from './page.module.css';
 
@@ -20,6 +21,9 @@ export default function ContactPage() {
         <header className={styles.header}>
           <ScrollReveal direction="up">
             <span className={styles.kicker}>Connect With Us</span>
+          </ScrollReveal>
+          <ScrollReveal direction="none" delay={0.05}>
+            <Ornament />
           </ScrollReveal>
           <ScrollReveal direction="up" delay={0.1}>
             <h1 className={`${styles.title} text-gradient`}>Contact Savora</h1>

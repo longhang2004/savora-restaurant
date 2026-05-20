@@ -32,6 +32,19 @@
   border: 1px solid var(--border-color);
 }
 
+.imgWrapper::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  right: 8px;
+  bottom: 8px;
+  border: 1px solid rgba(var(--accent-gold-rgb), 0.2);
+  border-radius: var(--radius-xl);
+  z-index: -1;
+  pointer-events: none;
+}
+
 @media (min-width: 768px) {
   .imgWrapper {
     height: 500px;

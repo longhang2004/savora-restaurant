@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { menuItems } from '@/data/menu';
 import ScrollReveal from '../ui/ScrollReveal';
+import Ornament from '../ui/Ornament';
 import styles from './FeaturedDishes.module.css';
 
 export default function FeaturedDishes() {
@@ -19,6 +20,9 @@ export default function FeaturedDishes() {
         <div className={styles.header}>
           <ScrollReveal direction="up">
             <span className={styles.kicker}>Chef's Masterpieces</span>
+          </ScrollReveal>
+          <ScrollReveal direction="none" delay={0.05}>
+            <Ornament />
           </ScrollReveal>
           <ScrollReveal direction="up" delay={0.1}>
             <h2 className={styles.title}>Signature Gastronomy</h2>

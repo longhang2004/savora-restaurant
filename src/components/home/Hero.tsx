@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Calendar, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Ornament from '../ui/Ornament';
 import styles from './Hero.module.css';
 
 export default function Hero() {
@@ -33,6 +34,14 @@ export default function Hero() {
         >
           Vietnamese Heritage Gastronomy
         </motion.span>
+
+        <motion.div
+          initial={{ opacity: 0, scaleX: 0 }}
+          animate={{ opacity: 1, scaleX: 1 }}
+          transition={{ duration: 0.8, delay: 0.3 }}
+        >
+          <Ornament />
+        </motion.div>
 
         <motion.h1
           initial={{ opacity: 0, y: 30 }}

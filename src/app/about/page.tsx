@@ -2,6 +2,7 @@ import React from 'react';
 import Image from 'next/image';
 import { generatePageMetadata } from '@/lib/metadata';
 import ScrollReveal from '@/components/ui/ScrollReveal';
+import Ornament from '@/components/ui/Ornament';
 import AnimatedCounter from '@/components/ui/AnimatedCounter';
 import styles from './page.module.css';
 
@@ -55,6 +56,9 @@ export default function AboutPage() {
           <div className={styles.heroContent}>
             <ScrollReveal direction="up">
               <span className={styles.kicker}>The Savora Journal</span>
+            </ScrollReveal>
+            <ScrollReveal direction="none" delay={0.05}>
+              <Ornament />
             </ScrollReveal>
             <ScrollReveal direction="up" delay={0.1}>
               <h1 className={`${styles.title} text-gradient`}>Our Story</h1>

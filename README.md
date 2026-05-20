@@ -1,36 +1,119 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Savora Restaurant - Premium Vietnamese Fusion Web App
 
-## Getting Started
+A high-performance, dark luxury Vietnamese-fusion culinary showcase built with **Next.js 15 (App Router)**, **React 19**, **TypeScript**, **Framer Motion**, and **CSS Modules**. 
 
-First, run the development server:
+This repository serves as an elite showcase for **frontend engineering excellence** and **advanced search engine optimization (SEO)** practices.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 🌟 Key Features
+
+*   **Dark Luxury Aesthetic**: Custom typography (Playfair Display & Inter), harmony color tokens, glassmorphism card layouts, and subtle radial light glows.
+*   **Dynamic Interactive Menu**: Client-side categorizations (Starters, Mains, Desserts, Drinks) with spring-animated underline transitions and smooth exit/entrance card reveals.
+*   **Story Timeline**: A customized scroll-triggered vertical timeline showcasing the restaurant's culinary journey from 2016 to 2026.
+*   **Fully Validated Reservation System**: Complete reservation form validating guests count, date/time inputs, and contact data, paired with submit state indicators and a booking summary invoice card.
+*   **SEO-Optimized Blog (Journal)**: High-speed Static Site Generation (SSG) lists and dynamic posts (`/blog/[slug]`) that fetch route params as Promises (Next.js 15/16 standard).
+*   **Responsive Architecture**: Fluid grid systems and adaptive media elements optimized for mobile, tablet, and ultra-wide desktop screens.
+
+---
+
+## 🚀 SEO & Core Web Vitals Highlights
+
+To guarantee maximum visibility and rapid search engine indexing, the project implements the following technical SEO specifications:
+
+1.  **Metadata Optimization Engine**
+    *   Constructed a reusable metadata utility (`generatePageMetadata` in `src/lib/metadata.ts`) to programmatically handle title suffixes, canonical links, Open Graph details, and Twitter Card specifications for each route.
+2.  **Structured Data Integration (JSON-LD)**
+    *   **Local Business Schema**: Injected globally in `layout.tsx` to declare Savora as a premium food establishment in District 1 HCMC, complete with geolocation coordinates, telephone, currency, and opening hours.
+    *   **Menu Schema**: Dynamically injected on `/menu` referencing specific categories and individual chef signature items.
+    *   **Article Schema**: Dynamically computed and injected on `/blog/[slug]` referencing the publication date, author name, reading time, and body synopsis.
+3.  **Automated XML Sitemap & Robots**
+    *   `src/app/sitemap.ts` programmatically queries the static routes and database-backed blog articles, compiling a clean indexing sitemap.
+    *   `src/app/robots.ts` declares crawling permissions and directly refers to the sitemap location.
+4.  **Static Site Optimization**
+    *   Compiled 100% of routes as pre-rendered static HTML (`Static` or `SSG`), achieving maximum Core Web Vitals performance (Largest Contentful Paint, Cumulative Layout Shift).
+
+---
+
+## 🛠️ Technology Stack
+
+*   **Framework**: Next.js 15.2.6 (App Router)
+*   **Runtime Library**: React 19.2.4
+*   **Type Checker**: TypeScript 5.x
+*   **Styling**: Vanilla CSS Modules (Scoped CSS classes, no utility classes pollution)
+*   **Motion**: Framer Motion 12.x
+*   **Iconography**: Lucide React
+*   **Package Manager**: pnpm 10.x
+
+---
+
+## 📂 Project Structure
+
+```
+savora-restaurant/
+├── public/                 # Optimized images and static assets
+├── src/
+│   ├── app/                # App Router (Pages, Layouts, Sitemap, Robots)
+│   │   ├── about/          # Restaurant Story Page
+│   │   ├── blog/           # Blog Listing and Dynamic Article Details ([slug])
+│   │   ├── contact/        # Contact Information & Inquiry Form
+│   │   ├── menu/           # Food Menu & Categories
+│   │   ├── reservations/   # Reservation Form & Policies
+│   │   ├── globals.css     # Global luxury design tokens & resets
+│   │   └── layout.tsx      # Main layout shell and base JSON-LD
+│   ├── components/         # Modular Components
+│   │   ├── home/           # Homepage sections (Hero, Story, Testimonials, CTA)
+│   │   ├── layout/         # Header & Footer (with inline SVG logos)
+│   │   ├── reservations/   # Reservation Form states
+│   │   └── ui/             # Animated counters & scroll trigger containers
+│   ├── data/               # Structured TS database (mock data)
+│   └── lib/                # SEO and JSON-LD schema builder engines
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 💻 Getting Started
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Prerequisites
 
-## Learn More
+Ensure you have [Node.js](https://nodejs.org/) installed and [pnpm](https://pnpm.io/) configured:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install -g pnpm
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Installation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Clone the repository and install dependencies:
 
-## Deploy on Vercel
+```bash
+pnpm install
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Development Server
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Run the local development server:
+
+```bash
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser to view the application.
+
+### Production Build
+
+Generate the optimized static build:
+
+```bash
+pnpm build
+```
+
+This compiles all pages into optimized static HTML files. To preview the production build locally:
+
+```bash
+pnpm start
+```
+
+---
+
+## 📄 License
+
+Designed and developed by [Hàng Nhựt Long](https://linkedin.com/in/nhựt-long-hàng-0aa434325). Built as a showcase for freelance frontend, performance, and SEO contracts.

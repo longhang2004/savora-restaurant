@@ -90,7 +90,7 @@ export default function MenuContainer() {
                     transition={{ duration: 0.4 }}
                     className={styles.gridItemWrapper}
                   >
-                    <div className={`${styles.menuCard} glassmorphism`}>
+                    <div className={`${styles.menuCard} glassmorphism card-hover-effect`}>
                       <div className={styles.imgWrapper}>
                         <Image
                           src={item.image}

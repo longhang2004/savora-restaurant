@@ -97,6 +97,34 @@ export default function AboutPage() {
               </div>
             </ScrollReveal>
           </div>
+
+          {/* Stats Counters Grid */}
+          <div className={styles.statsGrid}>
+            <ScrollReveal direction="up" delay={0.1} className={`${styles.statCard} glassmorphism`}>
+              <span className={styles.statNumber}>
+                <AnimatedCounter to={10} suffix="+" />
+              </span>
+              <span className={styles.statLabel}>Years of Heritage</span>
+            </ScrollReveal>
+            <ScrollReveal direction="up" delay={0.2} className={`${styles.statCard} glassmorphism`}>
+              <span className={styles.statNumber}>
+                <AnimatedCounter to={32} suffix="+" />
+              </span>
+              <span className={styles.statLabel}>Signature Dishes</span>
+            </ScrollReveal>
+            <ScrollReveal direction="up" delay={0.3} className={`${styles.statCard} glassmorphism`}>
+              <span className={styles.statNumber}>
+                <AnimatedCounter to={98} suffix="%" />
+              </span>
+              <span className={styles.statLabel}>Happy Guests</span>
+            </ScrollReveal>
+            <ScrollReveal direction="up" delay={0.4} className={`${styles.statCard} glassmorphism`}>
+              <span className={styles.statNumber}>
+                <AnimatedCounter to={4} suffix="" />
+              </span>
+              <span className={styles.statLabel}>Michelin Awards</span>
+            </ScrollReveal>
+          </div>
         </div>
       </section>
 

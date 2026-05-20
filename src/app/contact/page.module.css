@@ -1,0 +1,171 @@
+.page {
+  padding: 5rem 0 8rem 0;
+  background-color: var(--bg-primary);
+}
+
+.header {
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto 4rem auto;
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  color: var(--accent-gold);
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .title {
+    font-size: 4rem;
+  }
+}
+
+.subtitle {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3.5rem;
+  align-items: flex-start;
+}
+
+@media (min-width: 992px) {
+  .grid {
+    grid-template-columns: 1fr 1.2fr;
+  }
+}
+
+.infoCol {
+  width: 100%;
+}
+
+.formCol {
+  width: 100%;
+}
+
+.infoCard {
+  border-radius: var(--radius-xl);
+  padding: 2.5rem;
+}
+
+.cardTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2rem;
+  font-family: var(--font-body);
+}
+
+.contactList {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+}
+
+.contactItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  transition: transform var(--transition-fast);
+}
+
+a.contactItem:hover {
+  transform: translateX(4px);
+}
+
+.contactIcon {
+  color: var(--accent-gold);
+  margin-top: 0.25rem;
+  flex-shrink: 0;
+}
+
+.contactLabel {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.contactVal {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  font-weight: 600;
+  display: block;
+  line-height: 1.5;
+}
+
+a.contactItem:hover .contactVal {
+  color: var(--accent-gold);
+}
+
+/* Map Mockup - Styling an abstract map for luxury aesthetic */
+.mapMockup {
+  position: relative;
+  height: 200px;
+  width: 100%;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+  background-image: 
+    radial-gradient(var(--border-color) 1px, transparent 0),
+    radial-gradient(var(--border-color) 1px, transparent 0);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+}
+
+.mapOverlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--accent-gold);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.compassIcon {
+  color: var(--accent-gold);
+  animation: float 3s ease-in-out infinite;
+}
+
+.mapOverlayText {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-primary);
+}
+
+@keyframes float {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}

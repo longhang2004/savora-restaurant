@@ -1,0 +1,75 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.input {
+  flex: 1;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.7rem 0.9rem;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  font-family: inherit;
+}
+.input:focus {
+  border-color: var(--accent-gold);
+  outline: none;
+}
+
+.button {
+  padding: 0 1.1rem;
+  border: 1px solid var(--accent-gold);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--accent-gold);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.button:hover:not(:disabled) {
+  background: var(--accent-gold);
+  color: #14110f;
+}
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #e06c5a;
+  font-size: 0.8rem;
+}
+
+.done {
+  color: var(--accent-gold);
+  font-size: 0.9rem;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

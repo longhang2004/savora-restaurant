@@ -68,7 +68,7 @@ export default function Testimonials() {
                 </div>
 
                 {/* Review Text */}
-                <p className={styles.content}>"{testimonials[current].content}"</p>
+                <p className={styles.content}>&ldquo;{testimonials[current].content}&rdquo;</p>
 
                 {/* Author Info */}
                 <div className={styles.author}>

@@ -1,0 +1,232 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(5, 4, 3, 0.72);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+}
+
+.modal {
+  width: 100%;
+  max-width: 520px;
+  max-height: min(86vh, 720px);
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.5rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.title {
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.basePrice {
+  margin-top: 0.25rem;
+  color: var(--accent-gold);
+  font-size: 0.95rem;
+}
+
+.closeBtn {
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast);
+}
+.closeBtn:hover {
+  color: var(--text-primary);
+}
+
+.body {
+  padding: 1.25rem 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.noMods {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.group {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.groupTitle {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 0.6rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.groupHint {
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: 400;
+  font-size: 0.75rem;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.option:hover {
+  border-color: var(--border-color-hover);
+}
+
+.optionChecked {
+  border-color: rgba(200, 155, 60, 0.55);
+  background: rgba(200, 155, 60, 0.06);
+}
+
+.optionDisabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.option input {
+  accent-color: var(--accent-gold);
+  width: 16px;
+  height: 16px;
+}
+
+.optionName {
+  flex: 1;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.optionPrice {
+  color: var(--accent-gold);
+  font-size: 0.85rem;
+}
+
+.groupError {
+  color: #e06c5a;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.instructionsLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.instructionsHint {
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  font-size: 0.72rem;
+}
+
+.instructions {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.65rem 0.8rem;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  resize: vertical;
+  font-family: inherit;
+}
+.instructions:focus {
+  border-color: var(--accent-gold);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.quantity {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.qtyBtn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+  background: transparent;
+}
+.qtyBtn:hover {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.qtyValue {
+  min-width: 1.5rem;
+  text-align: center;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.addBtn {
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-hover));
+  color: #14110f;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.7rem 1.4rem;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.addBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-gold-hover);
+}

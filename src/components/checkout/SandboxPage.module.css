@@ -1,0 +1,99 @@
+.card {
+  border-radius: var(--radius-lg);
+  padding: 2.25rem;
+  text-align: center;
+}
+
+.icon {
+  color: var(--accent-gold);
+  margin: 0 auto 1rem;
+  display: block;
+}
+
+.title {
+  font-size: 1.6rem;
+  margin-bottom: 0.9rem;
+}
+
+.text {
+  color: var(--text-secondary);
+  line-height: 1.7;
+  font-size: 0.92rem;
+  text-align: left;
+  margin-bottom: 1.5rem;
+}
+
+.totals {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.3rem 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.total {
+  font-weight: 700;
+  color: var(--text-primary);
+  border-top: 1px solid var(--border-color);
+  margin-top: 0.4rem;
+  padding-top: 0.6rem;
+  font-size: 1.05rem;
+}
+
+.error {
+  color: #e06c5a;
+  font-size: 0.88rem;
+  margin-bottom: 1rem;
+}
+
+.simulateBtn {
+  width: 100%;
+  padding: 0.9rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-hover));
+  color: #14110f;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.simulateBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-gold-hover);
+}
+.simulateBtn:disabled {
+  opacity: 0.65;
+}
+
+.back {
+  display: block;
+  margin-top: 1rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+.back:hover {
+  color: var(--accent-gold);
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

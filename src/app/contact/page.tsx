@@ -4,6 +4,7 @@ import ContactForm from '@/components/contact/ContactForm';
 import ScrollReveal from '@/components/ui/ScrollReveal';
 import Ornament from '@/components/ui/Ornament';
 import { Mail, Phone, MapPin, Clock, Compass } from 'lucide-react';
+import { restaurantConfig } from '@/config/restaurant';
 import styles from './page.module.css';
 
 export const metadata = generatePageMetadata({
@@ -13,9 +14,15 @@ export const metadata = generatePageMetadata({
   keywords: ['savora contact', 'vietnamese restaurant address saigon', 'district 1 fine dining', 'savora email'],
 });
 
+function formatHours12(time: string): string {
+  const [h, m] = time.split(':').map(Number);
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
+}
+
 export default function ContactPage() {
-  return (
-    <div className={styles.page}>
+  return (    <div className={styles.page}>
       <div className="container">
         {/* Header */}
         <header className={styles.header}>
@@ -48,23 +55,23 @@ export default function ContactPage() {
                     <MapPin size={18} className={styles.contactIcon} />
                     <div>
                       <span className={styles.contactLabel}>Address</span>
-                      <span className={styles.contactVal}>15 Le Loi Street, District 1, Ho Chi Minh City, Vietnam</span>
+                      <span className={styles.contactVal}>{restaurantConfig.address.street}, {restaurantConfig.address.district}, {restaurantConfig.address.city}, Vietnam</span>
                     </div>
                   </div>
                   
-                  <a href="tel:+84786907453" className={styles.contactItem}>
+                  <a href={`tel:${restaurantConfig.phone}`} className={styles.contactItem}>
                     <Phone size={18} className={styles.contactIcon} />
                     <div>
                       <span className={styles.contactLabel}>Phone</span>
-                      <span className={styles.contactVal}>+84 786 907 453</span>
+                      <span className={styles.contactVal}>{restaurantConfig.phoneDisplay}</span>
                     </div>
                   </a>
 
-                  <a href="mailto:info@savora.vn" className={styles.contactItem}>
+                  <a href={`mailto:${restaurantConfig.emails.general}`} className={styles.contactItem}>
                     <Mail size={18} className={styles.contactIcon} />
                     <div>
                       <span className={styles.contactLabel}>General Email</span>
-                      <span className={styles.contactVal}>info@savora.vn</span>
+                      <span className={styles.contactVal}>{restaurantConfig.emails.general}</span>
                     </div>
                   </a>
 
@@ -73,8 +80,8 @@ export default function ContactPage() {
                     <div>
                       <span className={styles.contactLabel}>Opening Hours</span>
                       <span className={styles.contactVal}>
-                        Mon - Fri: 11:30 AM - 10:00 PM <br />
-                        Sat - Sun: 11:00 AM - 11:00 PM
+                        Mon - Fri: {formatHours12(restaurantConfig.openingHours.weekdays.open)} - {formatHours12(restaurantConfig.openingHours.weekdays.close)} <br />
+                        Sat - Sun: {formatHours12(restaurantConfig.openingHours.weekends.open)} - {formatHours12(restaurantConfig.openingHours.weekends.close)}
                       </span>
                     </div>
                   </div>

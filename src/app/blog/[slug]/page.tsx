@@ -7,6 +7,7 @@ import { blogPosts } from '@/data/blog-posts';
 import { generatePageMetadata } from '@/lib/metadata';
 import { generateArticleSchema } from '@/lib/structured-data';
 import ScrollReveal from '@/components/ui/ScrollReveal';
+import NewsletterForm from '@/components/newsletter/NewsletterForm';
 import styles from './page.module.css';
 
 interface PageProps {
@@ -163,22 +164,13 @@ export default async function BlogPostPage({ params }: PageProps) {
                   </div>
                 </div>
 
-                {/* Newsletter signup placeholder */}
+                {/* Newsletter signup — real subscription via server action */}
                 <div className={`${styles.sidebarCard} glassmorphism`} style={{ marginTop: '2rem' }}>
                   <h3 className={styles.sidebarTitle}>Savora Gazette</h3>
                   <p className={styles.gazetteDesc}>
                     Subscribe to receive invitations to private wine dinners, seasonal menu previews, and culinary stories.
                   </p>
-                  <form className={styles.gazetteForm} action="#">
-                    <input
-                      type="email"
-                      placeholder="Your email address"
-                      className={styles.gazetteInput}
-                    />
-                    <button type="submit" className={styles.gazetteBtn}>
-                      Subscribe
-                    </button>
-                  </form>
+                  <NewsletterForm />
                 </div>
               </ScrollReveal>
             </aside>

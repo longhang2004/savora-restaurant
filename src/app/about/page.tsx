@@ -182,7 +182,7 @@ export default function AboutPage() {
                 <span className={styles.chefRole}>Executive Chef & Co-Founder</span>
                 
                 <p className={styles.paragraph}>
-                  "The broth of Phở should tell the story of patience. My grandmother taught me that you cannot rush a broth—it absorbs the warmth of the fire, the history of the spices, and the care of the chef."
+                  &ldquo;The broth of Phở should tell the story of patience. My grandmother taught me that you cannot rush a broth—it absorbs the warmth of the fire, the history of the spices, and the care of the chef.&rdquo;
                 </p>
                 <p className={styles.paragraph}>
                   Chef Hoàng Lâm has spent over two decades in Michelin-starred kitchens across Paris and Tokyo. Returning to Vietnam, he integrated European confit methods and Japanese flavor balancing with the street-cooking heritage of his youth, resulting in Savora’s unique gastronomical style.

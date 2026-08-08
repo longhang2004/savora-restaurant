@@ -4,8 +4,19 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Calendar, Phone } from 'lucide-react';
+import { restaurantConfig } from '@/config/restaurant';
 import ScrollReveal from '../ui/ScrollReveal';
 import styles from './ReservationCTA.module.css';
+
+function formatHours(hours: { open: string; close: string }): string {
+  const to12 = (t: string) => {
+    const [h, m] = t.split(':').map(Number);
+    const suffix = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
+  };
+  return `${to12(hours.open)} - ${to12(hours.close)}`;
+}
 
 export default function ReservationCTA() {
   return (
@@ -32,17 +43,15 @@ export default function ReservationCTA() {
             </p>
 
             <div className={styles.hoursTable}>
-              <div className={styles.hoursRow}>
-                <span className={styles.day}>Lunch Service</span>
-                <span className={styles.time}>11:30 AM - 2:30 PM</span>
-              </div>
-              <div className={styles.hoursRow}>
-                <span className={styles.day}>Dinner Service</span>
-                <span className={styles.time}>5:30 PM - 10:00 PM</span>
-              </div>
+              {restaurantConfig.servicePeriods.map((period) => (
+                <div key={period.id} className={styles.hoursRow}>
+                  <span className={styles.day}>{period.label} Service</span>
+                  <span className={styles.time}>{formatHours({ open: period.start, close: period.end })}</span>
+                </div>
+              ))}
               <div className={styles.hoursRow}>
                 <span className={styles.day}>Weekends</span>
-                <span className={styles.time}>11:00 AM - 11:00 PM</span>
+                <span className={styles.time}>{formatHours(restaurantConfig.openingHours.weekends)}</span>
               </div>
             </div>
 
@@ -51,10 +60,10 @@ export default function ReservationCTA() {
                 <Calendar size={18} />
                 <span>Book Table Online</span>
               </Link>
-              
-              <a href="tel:+84786907453" className={styles.secondaryBtn}>
+
+              <a href={`tel:${restaurantConfig.phone}`} className={styles.secondaryBtn}>
                 <Phone size={18} />
-                <span>Call +84 786 907 453</span>
+                <span>Call {restaurantConfig.phoneDisplay}</span>
               </a>
             </div>
           </ScrollReveal>

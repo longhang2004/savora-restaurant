@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Calendar } from 'lucide-react';
+import { Menu, X, Calendar, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useCart } from '@/components/cart/CartProvider';
 import styles from './Header.module.css';
 
 const navItems = [
@@ -21,6 +22,7 @@ export default function Header() {
   const [visible, setVisible] = useState(true);
   const [prevScrollPos, setPrevScrollPos] = useState(0);
   const pathname = usePathname();
+  const { count } = useCart();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -38,10 +40,13 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [prevScrollPos]);
 
-  // Close mobile menu on path change
-  useEffect(() => {
+  // Close mobile menu on path change (adjust state during render — the
+  // idiomatic React pattern, avoids setState-in-effect cascades).
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
     setIsOpen(false);
-  }, [pathname]);
+  }
 
   // Lock scroll when mobile menu is open
   useEffect(() => {
@@ -87,6 +92,10 @@ export default function Header() {
 
           {/* CTA & Mobile Toggle */}
           <div className={styles.actions}>
+            <Link href="/cart" className={styles.cartLink} aria-label={`Cart, ${count} items`}>
+              <ShoppingBag size={17} />
+              {count > 0 && <span className={styles.cartBadge}>{count}</span>}
+            </Link>
             <Link href="/reservations" className={styles.ctaButton}>
               <Calendar size={16} />
               <span>Book Table</span>

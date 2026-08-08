@@ -3,7 +3,18 @@
 import React from 'react';
 import Link from 'next/link';
 import { ArrowUp, Mail, Phone, MapPin } from 'lucide-react';
+import { restaurantConfig } from '@/config/restaurant';
 import styles from './Footer.module.css';
+
+function formatHours(hours: { open: string; close: string }): string {
+  const to12 = (t: string) => {
+    const [h, m] = t.split(':').map(Number);
+    const suffix = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
+  };
+  return `${to12(hours.open)} - ${to12(hours.close)}`;
+}
 
 export default function Footer() {
   const scrollToTop = () => {
@@ -12,7 +23,6 @@ export default function Footer() {
       behavior: 'smooth',
     });
   };
-
   return (
     <footer className={styles.footer}>
       <div className={styles.container}>
@@ -27,14 +37,14 @@ export default function Footer() {
               Elevating traditional Vietnamese heritage through modern culinary artistry. An exquisite fusion of history and gastronomy.
             </p>
             <div className={styles.socials}>
-              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className={styles.socialLink} aria-label="Instagram">
+              <a href={restaurantConfig.social.instagram} target="_blank" rel="noopener noreferrer" className={styles.socialLink} aria-label="Instagram">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
                   <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
                   <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
                 </svg>
               </a>
-              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className={styles.socialLink} aria-label="Facebook">
+              <a href={restaurantConfig.social.facebook} target="_blank" rel="noopener noreferrer" className={styles.socialLink} aria-label="Facebook">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
                 </svg>
@@ -60,15 +70,15 @@ export default function Footer() {
             <ul className={styles.contactInfo}>
               <li>
                 <MapPin size={16} className={styles.contactIcon} />
-                <span>120 Nguyen Van Ba, Thu Duc, HCMC, Vietnam</span>
+                <span>{restaurantConfig.address.street}, {restaurantConfig.address.district}, {restaurantConfig.address.city}, Vietnam</span>
               </li>
               <li>
                 <Phone size={16} className={styles.contactIcon} />
-                <span>+84 786 907 453</span>
+                <span>{restaurantConfig.phoneDisplay}</span>
               </li>
               <li>
                 <Mail size={16} className={styles.contactIcon} />
-                <span>nhutlong20112004@gmail.com</span>
+                <span>{restaurantConfig.emails.general}</span>
               </li>
             </ul>
           </div>
@@ -79,11 +89,11 @@ export default function Footer() {
             <ul className={styles.hours}>
               <li>
                 <span className={styles.day}>Mon - Fri:</span>
-                <span className={styles.time}>11:30 AM - 10:00 PM</span>
+                <span className={styles.time}>{formatHours(restaurantConfig.openingHours.weekdays)}</span>
               </li>
               <li>
                 <span className={styles.day}>Sat - Sun:</span>
-                <span className={styles.time}>11:00 AM - 11:00 PM</span>
+                <span className={styles.time}>{formatHours(restaurantConfig.openingHours.weekends)}</span>
               </li>
               <li className={styles.hoursNote}>
                 * Kitchen closes 45 minutes before closing

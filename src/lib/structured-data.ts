@@ -1,10 +1,15 @@
-import { MenuItem } from '@/data/menu';
-import { BlogPost } from '@/data/blog-posts';
+/**
+ * JSON-LD structured data builders.
+ *
+ * All builders read from the central restaurant configuration; menu
+ * schema is generated from live database data.
+ */
+import { restaurantConfig } from '@/config/restaurant';
+import type { PublicMenuItem } from '@/features/menu/queries';
 
-const SITE_URL = 'https://savora-restaurant.vercel.app';
+const SITE_URL = restaurantConfig.siteUrl;
 
-// Generates BreadcrumbList Schema
-export function generateBreadcrumbSchema(items: { name: string; item: string }[]) {
+export function generateBreadcrumbSchema(items: { name: string; path: string }[]) {
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -12,72 +17,70 @@ export function generateBreadcrumbSchema(items: { name: string; item: string }[]
       '@type': 'ListItem',
       position: index + 1,
       name: item.name,
-      item: item.item.startsWith('http') ? item.item : `${SITE_URL}${item.item}`,
+      item: `${SITE_URL}${item.path}`,
     })),
   };
 }
 
-// Generates Menu Schema
-export function generateMenuSchema(items: MenuItem[]) {
-  const menuSections = ['starters', 'mains', 'desserts', 'drinks'].map((category) => {
-    const categoryItems = items.filter((item) => item.category === category);
-    return {
-      '@type': 'MenuSection',
-      name: category.charAt(0).toUpperCase() + category.slice(1),
-      hasMenuItem: categoryItems.map((item) => ({
-        '@type': 'MenuItem',
-        name: item.name,
-        description: item.description,
-        offers: {
-          '@type': 'Offer',
-          price: item.price,
-          priceCurrency: 'USD',
-        },
-        suitableForDiet: item.vegetarian ? 'https://schema.org/VegetarianDiet' : undefined,
-      })),
-    };
-  });
+export function generateMenuSchema(items: PublicMenuItem[]) {
+  const categories = [...new Set(items.map((item) => item.category.name))];
 
   return {
     '@context': 'https://schema.org',
     '@type': 'Menu',
-    name: 'Savora Fusion Menu',
-    mainEntityOfPage: `${SITE_URL}/menu`,
-    hasMenuSection: menuSections,
+    '@id': `${SITE_URL}/menu#menu`,
+    name: `${restaurantConfig.name} Menu`,
+    url: `${SITE_URL}/menu`,
+    hasMenuSection: categories.map((categoryName) => ({
+      '@type': 'MenuSection',
+      name: categoryName,
+      hasMenuItem: items
+        .filter((item) => item.category.name === categoryName)
+        .map((item) => ({
+          '@type': 'MenuItem',
+          name: item.name,
+          description: item.description,
+          offers: {
+            '@type': 'Offer',
+            price: (item.priceCents / 100).toFixed(2),
+            priceCurrency: restaurantConfig.currency,
+            availability: item.isAvailable
+              ? 'https://schema.org/InStock'
+              : 'https://schema.org/SoldOut',
+          },
+        })),
+    })),
   };
 }
 
-// Generates Article (Blog) Schema
-export function generateArticleSchema(post: BlogPost) {
+export function generateArticleSchema(post: {
+  title: string;
+  description: string;
+  date: string;
+  author: string;
+  slug: string;
+  image: string;
+}) {
+  const dateISO = new Date(post.date).toISOString();
+
   return {
     '@context': 'https://schema.org',
-    '@type': 'BlogPosting',
-    '@id': `${SITE_URL}/blog/${post.slug}#article`,
-    isPartOf: {
-      '@type': 'WebPage',
-      '@id': `${SITE_URL}/blog/${post.slug}`,
-      url: `${SITE_URL}/blog/${post.slug}`,
-      name: post.title,
-    },
+    '@type': 'Article',
     headline: post.title,
     description: post.description,
+    datePublished: dateISO,
+    dateModified: dateISO,
+    author: { '@type': 'Person', name: post.author },
     image: `${SITE_URL}${post.image}`,
-    datePublished: new Date(post.date).toISOString(),
-    author: {
-      '@type': 'Person',
-      name: post.author,
-    },
     publisher: {
-      '@type': 'Organization',
-      name: 'Savora Restaurant',
+      '@type': 'Restaurant',
+      name: restaurantConfig.name,
+      url: SITE_URL,
       logo: {
         '@type': 'ImageObject',
-        url: `${SITE_URL}/images/logo.png`,
+        url: `${SITE_URL}/images/og-main.png`,
       },
     },
-    mainEntityOfPage: {
-      '@type': 'WebPage',
-      '@id': `${SITE_URL}/blog/${post.slug}`,
-    },
+    mainEntityOfPage: `${SITE_URL}/blog/${post.slug}`,
   };
 }

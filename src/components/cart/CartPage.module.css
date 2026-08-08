@@ -1,0 +1,226 @@
+.header {
+  text-align: center;
+  padding: 2.5rem 0 2rem;
+}
+
+.kicker {
+  display: block;
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-gold);
+  margin-bottom: 0.75rem;
+}
+
+.title {
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  margin-top: 0.75rem;
+}
+
+.emptyWrap {
+  padding: 4rem 0;
+  text-align: center;
+}
+
+.emptyIcon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 1.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-gold);
+}
+
+.emptyTitle {
+  font-size: 1.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.emptyText {
+  color: var(--text-muted);
+  margin-bottom: 1.75rem;
+}
+
+.emptyCta {
+  display: inline-block;
+  padding: 0.7rem 1.6rem;
+  border: 1px solid var(--accent-gold);
+  border-radius: var(--radius-md);
+  color: var(--accent-gold);
+  font-weight: 600;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.emptyCta:hover {
+  background: var(--accent-gold);
+  color: #14110f;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 2rem;
+  align-items: start;
+  padding-bottom: 4rem;
+}
+
+@media (max-width: 992px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.linesCard,
+.summaryCard {
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+}
+
+.line {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.line:last-child {
+  border-bottom: none;
+}
+
+.lineName {
+  font-size: 1rem;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-weight: 600;
+}
+
+.lineMods {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+}
+
+.lineMods li {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-top: 0.15rem;
+}
+
+.modDelta {
+  color: var(--accent-gold);
+  margin-left: 0.35rem;
+  font-size: 0.75rem;
+}
+
+.lineNotes {
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.lineControls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.quantity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.3rem 0.5rem;
+}
+
+.quantity button {
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  padding: 0.1rem;
+}
+.quantity button:hover {
+  color: var(--accent-gold);
+}
+
+.quantity span {
+  min-width: 1.2rem;
+  text-align: center;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.lineTotal {
+  min-width: 4.5rem;
+  text-align: right;
+  color: var(--accent-gold);
+  font-weight: 700;
+}
+
+.removeBtn {
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  transition: color var(--transition-fast);
+}
+.removeBtn:hover {
+  color: #e06c5a;
+}
+
+.summaryTitle {
+  font-size: 1.15rem;
+  margin-bottom: 1rem;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  padding: 0.5rem 0;
+}
+
+.summaryRow span:last-child {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.summaryNote {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0.75rem 0 1.25rem;
+}
+
+.checkoutBtn {
+  display: block;
+  text-align: center;
+  padding: 0.8rem;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-hover));
+  color: #14110f;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.checkoutBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-gold-hover);
+}
+
+.keepShopping {
+  display: block;
+  text-align: center;
+  margin-top: 0.9rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  transition: color var(--transition-fast);
+}
+.keepShopping:hover {
+  color: var(--accent-gold);
+}

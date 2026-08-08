@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
+import { restaurantConfig } from '@/config/restaurant';
 
-export const SITE_URL = 'https://savora-restaurant.vercel.app';
+export const SITE_URL = restaurantConfig.siteUrl;
 
 interface PageMetadataInput {
   title: string;
@@ -31,7 +32,7 @@ export function generatePageMetadata({
     keywords: [
       'vietnamese fusion',
       'luxury dining hcmc',
-      'thu duc restaurant',
+      'saigon restaurant',
       'savora',
       ...keywords,
     ],

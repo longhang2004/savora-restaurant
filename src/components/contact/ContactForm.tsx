@@ -1,182 +1,165 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Mail, MessageSquare, User, CheckCircle, Loader2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Send, CheckCircle, Loader2 } from 'lucide-react';
+import { submitContactAction } from '@/features/contact/actions';
+import type { AppErrorShape } from '@/lib/errors';
 import styles from './ContactForm.module.css';
 
-interface FormState {
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
-}
-
-interface FormErrors {
-  name?: string;
-  email?: string;
-  subject?: string;
-  message?: string;
-}
-
 export default function ContactForm() {
-  const [formData, setFormData] = useState<FormState>({
-    name: '',
-    email: '',
-    subject: '',
-    message: '',
-  });
+  const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const [submitError, setSubmitError] = useState<AppErrorShape | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-
-  const validate = (): boolean => {
-    const newErrors: FormErrors = {};
-    
-    if (!formData.name.trim()) newErrors.name = 'Name is required';
-    
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Invalid email address';
-    }
-
-    if (!formData.subject.trim()) newErrors.subject = 'Subject is required';
-    if (!formData.message.trim()) newErrors.message = 'Message content is required';
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error for this field
-    if (errors[name as keyof FormErrors]) {
-      setErrors((prev) => ({ ...prev, [name]: undefined }));
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    if (errors[e.target.name]) {
+      setErrors((prev) => ({ ...prev, [e.target.name]: [] }));
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
+    setIsSubmitting(true);
+    setSubmitError(null);
+    setErrors({});
 
-    setLoading(true);
+    const result = await submitContactAction(formData);
 
-    // Simulate API request
-    setTimeout(() => {
-      setLoading(false);
-      setSuccess(true);
-    }, 1500);
+    setIsSubmitting(false);
+    if (result.ok) {
+      setSubmitted(true);
+    } else {
+      if (result.error.fieldErrors) {
+        setErrors(result.error.fieldErrors);
+      }
+      setSubmitError(result.error);
+    }
   };
 
-  if (success) {
+  if (submitted) {
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className={`${styles.successCard} glassmorphism`}
-      >
+      <div className={`${styles.successCard} glassmorphism`}>
         <CheckCircle className={styles.successIcon} />
         <h3 className={styles.successTitle}>Message Sent!</h3>
         <p className={styles.successText}>
-          Thank you, <strong>{formData.name}</strong>. We have received your inquiry and our guest relations team will get back to you at <strong>{formData.email}</strong> within 24 hours.
+          Thank you for reaching out, <strong>{formData.name}</strong>. Our team has received
+          your message and will get back to you shortly.
         </p>
-
-        <button onClick={() => setSuccess(false)} className={styles.resetBtn}>
+        <button className={styles.resetBtn} onClick={() => setSubmitted(false)}>
           Send Another Message
         </button>
-      </motion.div>
+      </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className={`${styles.form} glassmorphism`}>
-      {/* Name */}
+    <form onSubmit={handleSubmit} className={`${styles.form} glassmorphism`} noValidate>
       <div className={styles.formGroup}>
-        <label htmlFor="name" className={styles.label}>
-          <User size={14} className={styles.labelIcon} />
-          <span>Full Name</span>
+        <label htmlFor="contact-name" className={styles.label}>
+          Your Name
         </label>
         <input
           type="text"
-          id="name"
+          id="contact-name"
           name="name"
           value={formData.name}
           onChange={handleChange}
           placeholder="John Doe"
+          required
           className={`${styles.input} ${errors.name ? styles.inputError : ''}`}
         />
-        {errors.name && <span className={styles.errorText}>{errors.name}</span>}
+        {errors.name?.map((msg) => (
+          <span key={msg} className={styles.errorText}>
+            {msg}
+          </span>
+        ))}
       </div>
 
-      {/* Email */}
       <div className={styles.formGroup}>
-        <label htmlFor="email" className={styles.label}>
-          <Mail size={14} className={styles.labelIcon} />
-          <span>Email Address</span>
+        <label htmlFor="contact-email" className={styles.label}>
+          Email Address
         </label>
         <input
           type="email"
-          id="email"
+          id="contact-email"
           name="email"
           value={formData.email}
           onChange={handleChange}
           placeholder="john@example.com"
+          required
           className={`${styles.input} ${errors.email ? styles.inputError : ''}`}
         />
-        {errors.email && <span className={styles.errorText}>{errors.email}</span>}
+        {errors.email?.map((msg) => (
+          <span key={msg} className={styles.errorText}>
+            {msg}
+          </span>
+        ))}
       </div>
 
-      {/* Subject */}
       <div className={styles.formGroup}>
-        <label htmlFor="subject" className={styles.label}>
-          <MessageSquare size={14} className={styles.labelIcon} />
-          <span>Subject</span>
+        <label htmlFor="contact-subject" className={styles.label}>
+          Subject
         </label>
         <input
           type="text"
-          id="subject"
+          id="contact-subject"
           name="subject"
           value={formData.subject}
           onChange={handleChange}
-          placeholder="General Inquiry, Private Events, Careers..."
+          placeholder="Private dining, event, general inquiry…"
+          required
           className={`${styles.input} ${errors.subject ? styles.inputError : ''}`}
         />
-        {errors.subject && <span className={styles.errorText}>{errors.subject}</span>}
+        {errors.subject?.map((msg) => (
+          <span key={msg} className={styles.errorText}>
+            {msg}
+          </span>
+        ))}
       </div>
 
-      {/* Message */}
       <div className={styles.formGroup}>
-        <label htmlFor="message" className={styles.label}>
-          <span>Your Message</span>
+        <label htmlFor="contact-message" className={styles.label}>
+          Message
         </label>
         <textarea
-          id="message"
+          id="contact-message"
           name="message"
           value={formData.message}
           onChange={handleChange}
-          placeholder="How can we help you?"
+          placeholder="Tell us how we can help…"
           rows={5}
+          required
           className={`${styles.textarea} ${errors.message ? styles.inputError : ''}`}
         />
-        {errors.message && <span className={styles.errorText}>{errors.message}</span>}
+        {errors.message?.map((msg) => (
+          <span key={msg} className={styles.errorText}>
+            {msg}
+          </span>
+        ))}
       </div>
 
-      {/* Submit */}
-      <button
-        type="submit"
-        disabled={loading}
-        className={styles.submitBtn}
-      >
-        {loading ? (
+      {submitError && !errors.name && !errors.email && !errors.subject && !errors.message && (
+        <p className={styles.errorText} role="alert">
+          {submitError.message}
+        </p>
+      )}
+
+      <button type="submit" disabled={isSubmitting} className={styles.submitBtn}>
+        {isSubmitting ? (
           <>
             <Loader2 size={16} className={styles.spinner} />
-            <span>Sending Message...</span>
+            <span>Sending…</span>
           </>
         ) : (
-          <span>Send Message</span>
+          <>
+            <Send size={16} />
+            <span>Send Message</span>
+          </>
         )}
       </button>
     </form>

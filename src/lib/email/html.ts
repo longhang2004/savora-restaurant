@@ -1,0 +1,12 @@
+const HTML_ESCAPES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+
+/** Escape untrusted text before inserting it into an HTML email template. */
+export function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => HTML_ESCAPES[character]);
+}

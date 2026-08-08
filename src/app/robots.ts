@@ -1,12 +1,16 @@
 import { MetadataRoute } from 'next';
-import { SITE_URL } from '@/lib/metadata';
+import { restaurantConfig } from '@/config/restaurant';
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: {
-      userAgent: '*',
-      allow: '/',
-    },
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    rules: [
+      {
+        userAgent: '*',
+        allow: '/',
+        // Admin and checkout surfaces must never be indexed.
+        disallow: ['/admin', '/api/', '/checkout', '/cart'],
+      },
+    ],
+    sitemap: `${restaurantConfig.siteUrl}/sitemap.xml`,
   };
 }

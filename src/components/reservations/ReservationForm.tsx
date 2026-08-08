@@ -1,284 +1,408 @@
 'use client';
 
+/**
+ * Real reservation flow:
+ *   party size + date → server-computed availability (available/limited/full)
+ *   → slot selection → customer details → transactional booking
+ *   → real confirmation with code.
+ */
 import React, { useState } from 'react';
-import { Calendar, Users, Clock, Mail, Phone, User, CheckCircle, Loader2 } from 'lucide-react';
+import { Calendar, Users, Mail, Phone, User, CheckCircle, Loader2, RefreshCcw } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { restaurantConfig, RESTAURANT_TIMEZONE } from '@/config/restaurant';
+import {
+  createReservationAction,
+} from '@/features/reservations/actions';
+import type { AppErrorShape } from '@/lib/errors';
 import styles from './ReservationForm.module.css';
 
-const timeSlots = [
-  '11:30 AM', '12:00 PM', '12:30 PM', '1:00 PM', '1:30 PM',
-  '5:30 PM', '6:00 PM', '6:30 PM', '7:00 PM', '7:30 PM', '8:00 PM', '8:30 PM'
-];
-
-interface FormState {
-  name: string;
-  email: string;
-  phone: string;
-  date: string;
+interface AvailabilitySlot {
   time: string;
-  guests: string;
-  notes: string;
+  periodId: string;
+  periodLabel: string;
+  status: 'available' | 'limited' | 'full';
+  startsAtISO: string;
 }
 
-interface FormErrors {
-  name?: string;
-  email?: string;
-  phone?: string;
-  date?: string;
-  time?: string;
-  guests?: string;
+interface ReservationResult {
+  confirmationCode: string;
+  customerName: string;
+  partySize: number;
+  startsAtISO: string;
+  tableName: string;
+  tableArea: string;
 }
 
-export default function ReservationForm() {
-  const [formData, setFormData] = useState<FormState>({
-    name: '',
-    email: '',
-    phone: '',
-    date: '',
-    time: '',
-    guests: '2',
-    notes: '',
-  });
+const MAX_PARTY = restaurantConfig.reservation.maxOnlinePartySize;
 
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+interface ReservationFormProps {
+  minDate: string;
+  maxDate: string;
+}
 
-  const validate = (): boolean => {
-    const newErrors: FormErrors = {};
-    
-    if (!formData.name.trim()) newErrors.name = 'Name is required';
-    
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Invalid email address';
+export default function ReservationForm({ minDate, maxDate }: ReservationFormProps) {
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+
+  const [partySize, setPartySize] = useState('2');
+  const [date, setDate] = useState('');
+  const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [slotError, setSlotError] = useState<string | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<AppErrorShape | null>(null);
+  const [result, setResult] = useState<ReservationResult | null>(null);
+
+  const loadAvailability = async () => {
+    if (!date) return;
+    setLoadingSlots(true);
+    setSlotError(null);
+    setSelectedTime(null);
+    setSlots(null);
+    try {
+      const res = await fetch(
+        `/api/reservations/availability?date=${encodeURIComponent(date)}&partySize=${encodeURIComponent(partySize)}`,
+      );
+      const body = await res.json();
+      if (!res.ok) {
+        setSlotError(body.error?.message ?? 'Could not load availability.');
+        return;
+      }
+      setSlots(body.slots);
+      setStep(2);
+    } catch {
+      setSlotError('Could not reach the server. Please try again.');
+    } finally {
+      setLoadingSlots(false);
     }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    } else if (!/^[0-9+\s-]{8,15}$/.test(formData.phone.trim())) {
-      newErrors.phone = 'Invalid phone number';
-    }
-
-    if (!formData.date) newErrors.date = 'Date is required';
-    if (!formData.time) newErrors.time = 'Time is required';
-    if (!formData.guests) newErrors.guests = 'Party size is required';
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error for this field
-    if (errors[name as keyof FormErrors]) {
-      setErrors((prev) => ({ ...prev, [name]: undefined }));
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
+    if (!selectedTime || submitting) return;
+    setSubmitting(true);
+    setSubmitError(null);
 
-    setLoading(true);
+    const res = await createReservationAction({
+      date,
+      time: selectedTime,
+      partySize: Number(partySize),
+      name,
+      email,
+      phone,
+      notes: notes || '',
+      source: 'online',
+    });
 
-    // Simulate API request
-    setTimeout(() => {
-      setLoading(false);
-      setSuccess(true);
-    }, 2000);
+    setSubmitting(false);
+    if (res.ok) {
+      setResult(res.data);
+      setStep(3);
+    } else {
+      setSubmitError(res.error);
+    }
   };
 
-  if (success) {
+  // ── Step 3: real confirmation ──────────────────────────────────────
+  if (step === 3 && result) {
+    const local = new Date(result.startsAtISO);
+    const dateLabel = local.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: RESTAURANT_TIMEZONE,
+    });
+    const timeLabel = local.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: RESTAURANT_TIMEZONE,
+    });
+
     return (
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         className={`${styles.successCard} glassmorphism`}
       >
         <CheckCircle className={styles.successIcon} />
-        <h3 className={styles.successTitle}>Reservation Requested!</h3>
+        <h3 className={styles.successTitle}>Reservation Confirmed!</h3>
         <p className={styles.successText}>
-          Thank you, <strong>{formData.name}</strong>. We have received your booking request. Our team will verify table availability and send a confirmation to <strong>{formData.email}</strong> shortly.
+          Thank you, <strong>{result.customerName}</strong>. Your table at{' '}
+          <strong>{result.tableName}</strong> ({result.tableArea}) is reserved for{' '}
+          <strong>{result.partySize}</strong> {result.partySize === 1 ? 'guest' : 'guests'} on{' '}
+          {dateLabel} at {timeLabel}.
         </p>
 
-        <div className={styles.summaryTable}>
-          <div className={styles.summaryRow}>
-            <span className={styles.summaryLabel}>Guests:</span>
-            <span className={styles.summaryVal}>{formData.guests} people</span>
-          </div>
-          <div className={styles.summaryRow}>
-            <span className={styles.summaryLabel}>Date:</span>
-            <span className={styles.summaryVal}>{formData.date}</span>
-          </div>
-          <div className={styles.summaryRow}>
-            <span className={styles.summaryLabel}>Time:</span>
-            <span className={styles.summaryVal}>{formData.time}</span>
-          </div>
+        <div className={styles.codeBox}>
+          <span className={styles.codeLabel}>Confirmation code</span>
+          <span className={styles.codeValue}>{result.confirmationCode}</span>
+          <span className={styles.codeHint}>
+            A confirmation email is on its way. Please show this code when you arrive.
+          </span>
         </div>
 
-        <button onClick={() => setSuccess(false)} className={styles.resetBtn}>
+        <button
+          onClick={() => {
+            setStep(1);
+            setResult(null);
+            setSlots(null);
+            setSelectedTime(null);
+          }}
+          className={styles.resetBtn}
+        >
           Make Another Booking
         </button>
       </motion.div>
     );
   }
 
+  // ── Step 2: slot selection + details ───────────────────────────────
+  if (step === 2 && slots) {
+    return (
+      <form onSubmit={handleSubmit} className={`${styles.form} glassmorphism`}>
+        <button
+          type="button"
+          className={styles.backLink}
+          onClick={() => {
+            setStep(1);
+            setSlots(null);
+          }}
+        >
+          ← Change date or party size
+        </button>
+
+        <div className={styles.slotsHeader}>
+          <h3 className={styles.slotsTitle}>Available times</h3>
+          <p className={styles.slotsMeta}>
+            {new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+            })}{' '}
+            · {partySize} {partySize === '1' ? 'guest' : 'guests'}
+          </p>
+        </div>
+
+        {slotError && (
+          <div className={styles.errorBox} role="alert">
+            {slotError}
+            <button type="button" className={styles.retryBtn} onClick={loadAvailability}>
+              <RefreshCcw size={13} /> Try again
+            </button>
+          </div>
+        )}
+
+        {slots.length === 0 && !slotError && (
+          <p className={styles.noSlots}>
+            No bookable slots on this date. Please try another day or contact us for large
+            parties.
+          </p>
+        )}
+
+        <div className={styles.periodGroups}>
+          {['lunch', 'dinner'].map((periodId) => {
+            const periodSlots = slots.filter((s) => s.periodId === periodId);
+            if (periodSlots.length === 0) return null;
+            return (
+              <div key={periodId} className={styles.periodGroup}>
+                <span className={styles.periodLabel}>
+                  {periodSlots[0].periodLabel}
+                </span>
+                <div className={styles.slotGrid}>
+                  {periodSlots.map((slot) => (
+                    <button
+                      key={slot.time}
+                      type="button"
+                      disabled={slot.status === 'full'}
+                      onClick={() => setSelectedTime(slot.time)}
+                      className={`${styles.slotBtn} ${
+                        selectedTime === slot.time ? styles.slotSelected : ''
+                      } ${slot.status === 'full' ? styles.slotFull : ''}`}
+                    >
+                      <span className={styles.slotTime}>{slot.time}</span>
+                      <span className={styles.slotStatus}>
+                        {slot.status === 'available' && 'Available'}
+                        {slot.status === 'limited' && 'Limited'}
+                        {slot.status === 'full' && 'Full'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {submitError && (
+          <div className={styles.errorBox} role="alert">
+            {submitError.message}
+            {submitError.code === 'RESERVATION_SLOT_UNAVAILABLE' && (
+              <button type="button" className={styles.retryBtn} onClick={loadAvailability}>
+                <RefreshCcw size={13} /> Reload availability
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className={styles.divider} />
+
+        <h3 className={styles.slotsTitle}>Your details</h3>
+        <div className={styles.formGrid}>
+          <div className={styles.formGroup}>
+            <label htmlFor="res-name" className={styles.label}>
+              <User size={14} className={styles.labelIcon} />
+              <span>Full Name</span>
+            </label>
+            <input
+              type="text"
+              id="res-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="John Doe"
+              required
+              className={styles.input}
+            />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="res-email" className={styles.label}>
+              <Mail size={14} className={styles.labelIcon} />
+              <span>Email Address</span>
+            </label>
+            <input
+              type="email"
+              id="res-email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="john@example.com"
+              required
+              className={styles.input}
+            />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="res-phone" className={styles.label}>
+              <Phone size={14} className={styles.labelIcon} />
+              <span>Phone Number</span>
+            </label>
+            <input
+              type="tel"
+              id="res-phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+84 786 907 453"
+              required
+              className={styles.input}
+            />
+          </div>
+        </div>
+
+        <div className={styles.formGroup}>
+          <label htmlFor="res-notes" className={styles.label}>
+            <span>Special Requests / Dietary Restrictions</span>
+          </label>
+          <textarea
+            id="res-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Celebrations, allergies, seating preferences…"
+            rows={3}
+            maxLength={500}
+            className={styles.textarea}
+          />
+        </div>
+
+        <button type="submit" disabled={!selectedTime || submitting} className={styles.submitBtn}>
+          {submitting ? (
+            <>
+              <Loader2 size={16} className={styles.spinner} />
+              <span>Confirming your table…</span>
+            </>
+          ) : (
+            <span>Confirm Reservation</span>
+          )}
+        </button>
+      </form>
+    );
+  }
+
+  // ── Step 1: party size + date ──────────────────────────────────────
   return (
-    <form onSubmit={handleSubmit} className={`${styles.form} glassmorphism`}>
-      {/* 2 Column Details */}
+    <div className={`${styles.form} glassmorphism`}>
       <div className={styles.formGrid}>
-        {/* Name */}
         <div className={styles.formGroup}>
-          <label htmlFor="name" className={styles.label}>
-            <User size={14} className={styles.labelIcon} />
-            <span>Full Name</span>
-          </label>
-          <input
-            type="text"
-            id="name"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            placeholder="John Doe"
-            className={`${styles.input} ${errors.name ? styles.inputError : ''}`}
-          />
-          {errors.name && <span className={styles.errorText}>{errors.name}</span>}
-        </div>
-
-        {/* Email */}
-        <div className={styles.formGroup}>
-          <label htmlFor="email" className={styles.label}>
-            <Mail size={14} className={styles.labelIcon} />
-            <span>Email Address</span>
-          </label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="john@example.com"
-            className={`${styles.input} ${errors.email ? styles.inputError : ''}`}
-          />
-          {errors.email && <span className={styles.errorText}>{errors.email}</span>}
-        </div>
-
-        {/* Phone */}
-        <div className={styles.formGroup}>
-          <label htmlFor="phone" className={styles.label}>
-            <Phone size={14} className={styles.labelIcon} />
-            <span>Phone Number</span>
-          </label>
-          <input
-            type="tel"
-            id="phone"
-            name="phone"
-            value={formData.phone}
-            onChange={handleChange}
-            placeholder="+84 786 907 453"
-            className={`${styles.input} ${errors.phone ? styles.inputError : ''}`}
-          />
-          {errors.phone && <span className={styles.errorText}>{errors.phone}</span>}
-        </div>
-
-        {/* Party Size */}
-        <div className={styles.formGroup}>
-          <label htmlFor="guests" className={styles.label}>
+          <label htmlFor="res-guests" className={styles.label}>
             <Users size={14} className={styles.labelIcon} />
             <span>Party Size</span>
           </label>
           <select
-            id="guests"
-            name="guests"
-            value={formData.guests}
-            onChange={handleChange}
+            id="res-guests"
+            value={partySize}
+            onChange={(e) => setPartySize(e.target.value)}
             className={styles.select}
           >
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
-              <option key={num} value={num.toString()}>
-                {num} {num === 1 ? 'Guest' : 'Guests'}
+            {Array.from({ length: MAX_PARTY }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>
+                {n} {n === 1 ? 'Guest' : 'Guests'}
               </option>
             ))}
-            <option value="9+">9+ Guests (Large Group)</option>
           </select>
         </div>
 
-        {/* Date */}
         <div className={styles.formGroup}>
-          <label htmlFor="date" className={styles.label}>
+          <label htmlFor="res-date" className={styles.label}>
             <Calendar size={14} className={styles.labelIcon} />
-            <span>Preferred Date</span>
+            <span>Date</span>
           </label>
           <input
             type="date"
-            id="date"
-            name="date"
-            value={formData.date}
-            onChange={handleChange}
-            min={new Date().toISOString().split('T')[0]}
-            className={`${styles.input} ${errors.date ? styles.inputError : ''}`}
+            id="res-date"
+            value={date}
+            min={minDate}
+            max={maxDate}
+            onChange={(e) => setDate(e.target.value)}
+            required
+            className={styles.input}
           />
-          {errors.date && <span className={styles.errorText}>{errors.date}</span>}
-        </div>
-
-        {/* Time */}
-        <div className={styles.formGroup}>
-          <label htmlFor="time" className={styles.label}>
-            <Clock size={14} className={styles.labelIcon} />
-            <span>Select Time</span>
-          </label>
-          <select
-            id="time"
-            name="time"
-            value={formData.time}
-            onChange={handleChange}
-            className={`${styles.select} ${errors.time ? styles.inputError : ''}`}
-          >
-            <option value="">Choose slot...</option>
-            {timeSlots.map((slot) => (
-              <option key={slot} value={slot}>
-                {slot}
-              </option>
-            ))}
-          </select>
-          {errors.time && <span className={styles.errorText}>{errors.time}</span>}
         </div>
       </div>
 
-      {/* Special Requests */}
-      <div className={styles.formGroup} style={{ marginTop: '1.5rem' }}>
-        <label htmlFor="notes" className={styles.label}>
-          <span>Special Requests / Dietary Restrictions</span>
-        </label>
-        <textarea
-          id="notes"
-          name="notes"
-          value={formData.notes}
-          onChange={handleChange}
-          placeholder="Let us know if you are celebrating a special occasion or have any food allergies (e.g. gluten-free, peanut allergy)..."
-          rows={4}
-          className={styles.textarea}
-        />
-      </div>
+      {slotError && (
+        <div className={styles.errorBox} role="alert">
+          {slotError}
+        </div>
+      )}
 
-      {/* Submit Button */}
       <button
-        type="submit"
-        disabled={loading}
+        type="button"
+        disabled={!date || loadingSlots}
+        onClick={loadAvailability}
         className={styles.submitBtn}
       >
-        {loading ? (
+        {loadingSlots ? (
           <>
             <Loader2 size={16} className={styles.spinner} />
-            <span>Processing booking request...</span>
+            <span>Checking availability…</span>
           </>
         ) : (
-          <span>Submit Reservation Request</span>
+          <span>Check Availability</span>
         )}
       </button>
-    </form>
+
+      <p className={styles.largePartyNote}>
+        Hosting more than {MAX_PARTY} guests?{' '}
+        <a href="/contact" className={styles.largePartyLink}>
+          Contact our events team
+        </a>{' '}
+        for private dining.
+      </p>
+    </div>
   );
 }

@@ -4,22 +4,24 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, Sparkles } from 'lucide-react';
-import { menuItems } from '@/data/menu';
+import { formatCents } from '@/lib/money';
+import type { PublicMenuItem } from '@/features/menu/queries';
 import ScrollReveal from '../ui/ScrollReveal';
 import Ornament from '../ui/Ornament';
 import styles from './FeaturedDishes.module.css';
 
-export default function FeaturedDishes() {
-  // Select 3 chefChoice or popular items
-  const featured = menuItems.filter((item) => item.chefChoice).slice(0, 3);
+interface FeaturedDishesProps {
+  items: PublicMenuItem[];
+}
 
+export default function FeaturedDishes({ items }: FeaturedDishesProps) {
   return (
     <section id="featured" className={styles.section}>
       <div className="container">
         {/* Section Header */}
         <div className={styles.header}>
           <ScrollReveal direction="up">
-            <span className={styles.kicker}>Chef's Masterpieces</span>
+            <span className={styles.kicker}>Chef&apos;s Masterpieces</span>
           </ScrollReveal>
           <ScrollReveal direction="none" delay={0.05}>
             <Ornament />
@@ -29,14 +31,15 @@ export default function FeaturedDishes() {
           </ScrollReveal>
           <ScrollReveal direction="up" delay={0.2}>
             <p className={styles.subtitle}>
-              A curated selection of dishes that showcase our culinary philosophy: respecting traditional Vietnamese heritage while exploring modern techniques.
+              A curated selection of dishes that showcase our culinary philosophy: respecting
+              traditional Vietnamese heritage while exploring modern techniques.
             </p>
           </ScrollReveal>
         </div>
 
         {/* Grid of Dishes */}
         <div className={styles.grid}>
-          {featured.map((dish, index) => (
+          {items.map((dish, index) => (
             <ScrollReveal
               key={dish.id}
               direction="up"
@@ -46,13 +49,13 @@ export default function FeaturedDishes() {
               <div className={`${styles.card} glassmorphism card-hover-effect`}>
                 <div className={styles.imgContainer}>
                   <Image
-                    src={dish.image}
+                    src={dish.imagePath ?? '/images/restaurant-hero.png'}
                     alt={dish.name}
                     fill
                     sizes="(max-width: 768px) 100vw, 33vw"
                     className={styles.image}
                   />
-                  {dish.chefChoice && (
+                  {dish.isFeatured && (
                     <span className={styles.tag}>
                       <Sparkles size={12} />
                       <span>Signature</span>
@@ -62,8 +65,8 @@ export default function FeaturedDishes() {
 
                 <div className={styles.cardContent}>
                   <div className={styles.meta}>
-                    <span className={styles.category}>{dish.category}</span>
-                    <span className={styles.price}>${dish.price}</span>
+                    <span className={styles.category}>{dish.category.name}</span>
+                    <span className={styles.price}>{formatCents(dish.priceCents)}</span>
                   </div>
                   <h3 className={styles.dishName}>{dish.name}</h3>
                   <p className={styles.description}>{dish.description}</p>

@@ -80,18 +80,17 @@ export default function MenuContainer({ menu }: MenuContainerProps) {
           </ScrollReveal>
 
           {/* Menu Grid */}
-          <motion.div layout className={styles.menuGrid}>
-            <AnimatePresence mode="wait">
-              {filteredItems.map((item, index) => (
-                <motion.div
-                  layout
-                  key={item.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.35, delay: index * 0.05 }}
-                  className={styles.gridItemWrapper}
-                >
+          <AnimatePresence initial={false} mode="wait">
+            <motion.div
+              key={activeCategory}
+              className={styles.menuGrid}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+            >
+              {filteredItems.map((item) => (
+                <div key={item.id} className={styles.gridItemWrapper}>
                   <div
                     className={`${styles.menuCard} glassmorphism card-hover-effect ${!item.isAvailable ? styles.soldOutCard : ''}`}
                   >
@@ -151,10 +150,10 @@ export default function MenuContainer({ menu }: MenuContainerProps) {
                       )}
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
-            </AnimatePresence>
-          </motion.div>
+            </motion.div>
+          </AnimatePresence>
 
           {/* Note at bottom */}
           <ScrollReveal direction="up" className={styles.dietaryNote}>

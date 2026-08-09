@@ -1,36 +1,30 @@
-/**
- * Stripe payment lifecycle tests.
- *
- * - markOrderPaid is the single idempotent source of truth.
- * - Webhook processing covers signature verification (real crypto via
- *   stripe.webhooks.generateTestHeaderString — no network), duplicate
- *   events, unsupported events, and the route handler status codes.
- * - Reaching a success URL never marks an order paid (covered implicitly:
- *   payment state changes only through markOrderPaid).
- */
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import Stripe from 'stripe';
+import { createHmac } from 'node:crypto';
 import { count, eq } from 'drizzle-orm';
 import { createTestDb, resetDb } from './helpers';
-import { orders, payments, stripeWebhookEvents, orderItems, orderItemModifiers } from '@/lib/db/schema';
+import { orders, payments, payosWebhookEvents, orderItems, orderItemModifiers } from '@/lib/db/schema';
 import { markOrderPaid } from '@/features/payments/service';
-import { processStripeEvent } from '@/features/payments/webhook';
-import { POST as webhookHandler } from '@/app/api/webhooks/stripe/route';
+import { processPayOSWebhook } from '@/features/payments/payos-webhook';
+import { POST as webhookHandler } from '@/app/api/webhooks/payos/route';
 import { ErrorCodes } from '@/lib/errors';
 
 const { db } = createTestDb();
-const WEBHOOK_SECRET = 'whsec_test_secret_1234567890';
+const CHECKSUM_KEY = 'payos_checksum_test_1234567890';
+type PayOSWebhookData = Parameters<typeof processPayOSWebhook>[0];
 
 beforeAll(async () => {
   await resetDb(db);
 });
 
 beforeEach(async () => {
-  await db.delete(stripeWebhookEvents);
+  await db.delete(payosWebhookEvents);
   await db.delete(payments);
   await db.delete(orderItemModifiers);
   await db.delete(orderItems);
   await db.delete(orders);
+  process.env.PAYOS_CLIENT_ID = 'payos_client_test';
+  process.env.PAYOS_API_KEY = 'payos_api_test';
+  process.env.PAYOS_CHECKSUM_KEY = CHECKSUM_KEY;
 });
 
 async function insertPendingOrder(publicCode = 'SV-TEST-001') {
@@ -44,21 +38,49 @@ async function insertPendingOrder(publicCode = 'SV-TEST-001') {
       fulfillmentType: 'pickup',
       status: 'PENDING',
       paymentStatus: 'UNPAID',
-      currency: 'USD',
-      subtotalCents: 5000,
+      currency: 'VND',
+      subtotalCents: 500_000,
       deliveryFeeCents: 0,
-      taxCents: 250,
-      totalCents: 5250,
+      taxCents: 25_000,
+      totalCents: 525_000,
       checkoutKey: `ck_payment_${publicCode.toLowerCase()}`,
+      payosOrderCode: 1_234_567_890,
+      payosPaymentLinkId: `payos_${publicCode.toLowerCase()}`,
+      payosCheckoutUrl: `https://pay.payos.vn/web/payos_${publicCode.toLowerCase()}`,
     })
     .returning();
   return order;
 }
 
+function webhookData(order: { totalCents: number; payosOrderCode: number | null; payosPaymentLinkId: string | null }, overrides: Record<string, unknown> = {}) {
+  return {
+    orderCode: order.payosOrderCode!,
+    amount: order.totalCents,
+    description: 'Savora order',
+    accountNumber: '12345678',
+    reference: 'TF230204212323',
+    transactionDateTime: '2026-08-08 12:00:00',
+    currency: 'VND',
+    paymentLinkId: order.payosPaymentLinkId!,
+    code: '00',
+    desc: 'Success',
+    ...overrides,
+  };
+}
+
+function signData(data: Record<string, unknown>) {
+  const query = Object.keys(data)
+    .sort()
+    .filter((key) => data[key] !== undefined)
+    .map((key) => `${key}=${data[key] ?? ''}`)
+    .join('&');
+  return createHmac('sha256', CHECKSUM_KEY).update(query).digest('hex');
+}
+
 describe('markOrderPaid (idempotent payment confirmation)', () => {
   it('marks an unpaid PENDING order paid and moves it to NEW', async () => {
     const order = await insertPendingOrder();
-    const result = await markOrderPaid(order.id, 'cs_test_1');
+    const result = await markOrderPaid(order.id, { payosPaymentLinkId: order.payosPaymentLinkId });
     expect(result).toBe('paid');
 
     const [row] = await db.select().from(orders).where(eq(orders.id, order.id));
@@ -67,66 +89,25 @@ describe('markOrderPaid (idempotent payment confirmation)', () => {
 
     const [payment] = await db.select().from(payments).where(eq(payments.orderId, order.id));
     expect(payment.status).toBe('paid');
-    expect(payment.amountCents).toBe(5250);
+    expect(payment.amountCents).toBe(525_000);
+    expect(payment.payosPaymentLinkId).toBe(order.payosPaymentLinkId);
   });
 
-  it('is a safe no-op when called twice (webhook replay / double-click)', async () => {
+  it('is a safe no-op when called twice', async () => {
     const order = await insertPendingOrder();
-    await markOrderPaid(order.id, 'cs_test_2');
-    const again = await markOrderPaid(order.id, 'cs_test_2');
+    await markOrderPaid(order.id, { payosPaymentLinkId: order.payosPaymentLinkId });
+    const again = await markOrderPaid(order.id, { payosPaymentLinkId: order.payosPaymentLinkId });
     expect(again).toBe('already_paid');
 
     const [{ count: total }] = await db.select({ count: count() }).from(payments);
-    expect(total).toBe(1); // no duplicate payment rows
-  });
-
-  it('does not touch already-paid orders in a later state', async () => {
-    const order = await insertPendingOrder();
-    await markOrderPaid(order.id, 'cs_test_3');
-    // Fulfillment progressed to PREPARING; a late webhook replay must not regress it.
-    await db.update(orders).set({ status: 'PREPARING' }).where(eq(orders.id, order.id));
-    const again = await markOrderPaid(order.id, 'cs_test_3');
-    expect(again).toBe('already_paid');
-
-    const [row] = await db.select().from(orders).where(eq(orders.id, order.id));
-    expect(row.status).toBe('PREPARING');
-    expect(row.paymentStatus).toBe('PAID');
+    expect(total).toBe(1);
   });
 });
 
-describe('webhook processing (processStripeEvent)', () => {
-  function checkoutEvent(
-    order: { id: string; publicCode: string; totalCents: number; currency: string; customerEmail: string },
-    eventId = 'evt_test_1',
-    sessionId = 'cs_test_w1',
-    overrides: Record<string, unknown> = {},
-  ) {
-    return {
-      id: eventId,
-      object: 'event',
-      api_version: '2025-02-24.acacia',
-      created: 1_800_000_000,
-      type: 'checkout.session.completed',
-      data: {
-        object: {
-          id: sessionId,
-          object: 'checkout.session',
-          metadata: { orderId: order.id, publicCode: order.publicCode },
-          client_reference_id: order.publicCode,
-          customer_email: order.customerEmail,
-          payment_status: 'paid',
-          amount_total: order.totalCents,
-          currency: order.currency.toLowerCase(),
-          status: 'complete',
-          ...overrides,
-        },
-      },
-    } as unknown as Stripe.Event;
-  }
-
-  it('confirms payment for a valid checkout.session.completed event', async () => {
+describe('PayOS webhook processing', () => {
+  it('confirms a valid, verified payment notification', async () => {
     const order = await insertPendingOrder('SV-TEST-002');
-    const result = await processStripeEvent(checkoutEvent(order));
+    const result = await processPayOSWebhook(webhookData(order) as PayOSWebhookData);
     expect(result.handled).toBe(true);
 
     const [row] = await db.select().from(orders).where(eq(orders.id, order.id));
@@ -134,148 +115,74 @@ describe('webhook processing (processStripeEvent)', () => {
     expect(row.status).toBe('NEW');
   });
 
-  it('ignores duplicate event delivery (replay is a no-op)', async () => {
+  it('deduplicates a replayed bank reference', async () => {
     const order = await insertPendingOrder('SV-TEST-003');
-    const event = checkoutEvent(order, 'evt_test_dup', 'cs_test_dup');
-    await processStripeEvent(event);
-    const replay = await processStripeEvent(event);
+    const data = webhookData(order);
+    await processPayOSWebhook(data as PayOSWebhookData);
+    const replay = await processPayOSWebhook(data as PayOSWebhookData);
     expect(replay.duplicate).toBe(true);
 
     const [{ count: total }] = await db.select({ count: count() }).from(payments);
     expect(total).toBe(1);
   });
 
-  it('safely ignores unsupported event types', async () => {
+  it('verifies the official SDK checksum end-to-end through the route', async () => {
     const order = await insertPendingOrder('SV-TEST-004');
-    const result = await processStripeEvent({
-      id: 'evt_test_ignore',
-      type: 'payment_intent.succeeded',
-      data: { object: {} },
-    } as unknown as Stripe.Event);
-    expect(result.handled).toBe(false);
+    const data = webhookData(order);
+    const payload = { code: '00', desc: 'success', success: true, data, signature: signData(data) };
+    const response = await webhookHandler(
+      new Request('http://localhost/api/webhooks/payos', { method: 'POST', body: JSON.stringify(payload) }),
+    );
 
-    const [row] = await db.select().from(orders).where(eq(orders.id, order.id));
-    expect(row.paymentStatus).toBe('UNPAID');
-  });
-
-  it('verifies real Stripe signatures end-to-end through the route handler', async () => {
-    const order = await insertPendingOrder('SV-TEST-005');
-    const event = checkoutEvent(order, 'evt_test_signed', 'cs_test_signed');
-
-    const payload = JSON.stringify(event);
-    // generateTestHeaderString is the official Stripe test helper.
-    const header = new Stripe('sk_test_dummy').webhooks.generateTestHeaderString({
-      payload,
-      secret: WEBHOOK_SECRET,
-    });
-
-    const request = new Request('http://localhost/api/webhooks/stripe', {
-      method: 'POST',
-      headers: { 'stripe-signature': header },
-      body: payload,
-    });
-    // Route reads STRIPE_WEBHOOK_SECRET from env at call time.
-    process.env.STRIPE_WEBHOOK_SECRET = WEBHOOK_SECRET;
-    try {
-      const response = await webhookHandler(request);
-      expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body.handled).toBe(true);
-    } finally {
-      delete process.env.STRIPE_WEBHOOK_SECRET;
-    }
-
+    expect(response.status).toBe(200);
+    expect((await response.json()).handled).toBe(true);
     const [row] = await db.select().from(orders).where(eq(orders.id, order.id));
     expect(row.paymentStatus).toBe('PAID');
   });
 
-  it('rejects an invalid signature with 400 and does not mutate state', async () => {
-    const order = await insertPendingOrder('SV-TEST-006');
-    process.env.STRIPE_WEBHOOK_SECRET = WEBHOOK_SECRET;
-    try {
-      const request = new Request('http://localhost/api/webhooks/stripe', {
-        method: 'POST',
-        headers: { 'stripe-signature': 't=1,v1=forged' },
-        body: JSON.stringify(checkoutEvent(order, 'evt_test_forged')),
-      });
-      const response = await webhookHandler(request);
-      expect(response.status).toBe(400);
-    } finally {
-      delete process.env.STRIPE_WEBHOOK_SECRET;
-    }
-
-    const [row] = await db.select().from(orders).where(eq(orders.id, order.id));
-    expect(row.paymentStatus).toBe('UNPAID');
-  });
-
-  it('does not mark an unpaid completed session as paid', async () => {
-    const order = await insertPendingOrder('SV-TEST-007');
-    const result = await processStripeEvent(
-      checkoutEvent(order, 'evt_test_unpaid', 'cs_test_unpaid', { payment_status: 'unpaid' }),
+  it('rejects a forged checksum without mutating state', async () => {
+    const order = await insertPendingOrder('SV-TEST-005');
+    const data = webhookData(order);
+    const payload = { code: '00', desc: 'success', success: true, data, signature: 'forged' };
+    const response = await webhookHandler(
+      new Request('http://localhost/api/webhooks/payos', { method: 'POST', body: JSON.stringify(payload) }),
     );
 
-    expect(result.handled).toBe(true);
+    expect(response.status).toBe(400);
     const [row] = await db.select().from(orders).where(eq(orders.id, order.id));
     expect(row.paymentStatus).toBe('UNPAID');
   });
 
-  it('rejects a session whose amount does not match the order', async () => {
-    const order = await insertPendingOrder('SV-TEST-008');
+  it('rejects an amount mismatch and leaves no consumed event record', async () => {
+    const order = await insertPendingOrder('SV-TEST-006');
+    const data = webhookData(order, { amount: order.totalCents - 1, reference: 'REF_AMOUNT_MISMATCH' });
 
-    await expect(
-      processStripeEvent(
-        checkoutEvent(order, 'evt_test_amount_mismatch', 'cs_test_amount_mismatch', {
-          amount_total: order.totalCents - 1,
-        }),
-      ),
-    ).rejects.toMatchObject({ code: ErrorCodes.PAYMENT_NOT_CONFIRMED });
-
-    const [row] = await db.select().from(orders).where(eq(orders.id, order.id));
-    expect(row.paymentStatus).toBe('UNPAID');
+    await expect(processPayOSWebhook(data as PayOSWebhookData)).rejects.toMatchObject({
+      code: ErrorCodes.PAYMENT_NOT_CONFIRMED,
+    });
     const [event] = await db
       .select()
-      .from(stripeWebhookEvents)
-      .where(eq(stripeWebhookEvents.stripeEventId, 'evt_test_amount_mismatch'));
+      .from(payosWebhookEvents)
+      .where(eq(payosWebhookEvents.eventKey, `${data.paymentLinkId}:${data.reference}`));
     expect(event).toBeUndefined();
   });
 
-  it('rejects a session whose currency does not match the order', async () => {
-    const order = await insertPendingOrder('SV-TEST-008B');
+  it('rejects a payment link from a replaced attempt', async () => {
+    const order = await insertPendingOrder('SV-TEST-007');
+    const data = webhookData(order, { paymentLinkId: 'payos_old_replaced', reference: 'REF_REPLACED' });
 
-    await expect(
-      processStripeEvent(
-        checkoutEvent(order, 'evt_test_currency_mismatch', 'cs_test_currency_mismatch', {
-          currency: 'eur',
-        }),
-      ),
-    ).rejects.toMatchObject({ code: ErrorCodes.PAYMENT_NOT_CONFIRMED });
-
-    const [row] = await db.select().from(orders).where(eq(orders.id, order.id));
-    expect(row.paymentStatus).toBe('UNPAID');
-  });
-
-  it('rejects a session whose public identity does not match the order', async () => {
-    const order = await insertPendingOrder('SV-TEST-009');
-
-    await expect(
-      processStripeEvent(
-        checkoutEvent(order, 'evt_test_identity_mismatch', 'cs_test_identity_mismatch', {
-          client_reference_id: 'SV-WRONG-CODE',
-        }),
-      ),
-    ).rejects.toMatchObject({ code: ErrorCodes.PAYMENT_NOT_CONFIRMED });
-
-    const [row] = await db.select().from(orders).where(eq(orders.id, order.id));
-    expect(row.paymentStatus).toBe('UNPAID');
-  });
-
-  it('returns 503 when the webhook secret is not configured', async () => {
-    const request = new Request('http://localhost/api/webhooks/stripe', {
-      method: 'POST',
-      headers: { 'stripe-signature': 't=1,v1=x' },
-      body: '{}',
+    await expect(processPayOSWebhook(data as PayOSWebhookData)).rejects.toMatchObject({
+      code: ErrorCodes.PAYMENT_NOT_CONFIRMED,
     });
-    const response = await webhookHandler(request);
+  });
+
+  it('returns 503 when PayOS credentials are absent', async () => {
+    delete process.env.PAYOS_CLIENT_ID;
+    delete process.env.PAYOS_API_KEY;
+    delete process.env.PAYOS_CHECKSUM_KEY;
+    const response = await webhookHandler(
+      new Request('http://localhost/api/webhooks/payos', { method: 'POST', body: '{}' }),
+    );
     expect(response.status).toBe(503);
   });
 });

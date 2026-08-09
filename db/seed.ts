@@ -20,6 +20,12 @@ import { percentOfCents } from '../src/lib/money';
 import { restaurantConfig, RESTAURANT_TIMEZONE } from '../src/config/restaurant';
 
 const SEED_ADMIN_USER_ID = process.env.SEED_ADMIN_USER_ID;
+const USD_TO_VND_RATE = 26_186.832633;
+
+/** Match the one-time USD→VND migration: customer-facing prices round to 1,000₫. */
+function legacyUsdCentsToVnd(cents: number): number {
+  return Math.round((cents * USD_TO_VND_RATE) / 100 / 1_000) * 1_000;
+}
 
 /** Local wall-clock slot helper — mirrors the availability engine's periods. */
 function localSlots(dateStr: string, times: string[]): { startsAt: Date; endsAt: Date }[] {
@@ -52,7 +58,7 @@ export async function seed(url: string) {
   try {
     // ── Full reset ────────────────────────────────────────────────────
     await db.execute(sql`TRUNCATE TABLE
-      stripe_webhook_events, payments, order_item_modifiers, order_items,
+      payos_webhook_events, stripe_webhook_events, payments, order_item_modifiers, order_items,
       orders, newsletter_subscribers, contact_inquiries, reservation_tables,
       reservations, dining_tables, menu_item_modifier_groups, modifier_options,
       modifier_groups, menu_items, menu_categories, admin_profiles
@@ -95,7 +101,7 @@ export async function seed(url: string) {
           name: item.name,
           slug: item.slug,
           description: item.description,
-          priceCents: item.price * 100,
+          priceCents: legacyUsdCentsToVnd(item.price * 100),
           imagePath: item.image,
           categoryId: categoryBySlug[item.category].id,
           dietaryTags: item.vegetarian ? ['Vegetarian'] : [],
@@ -132,14 +138,14 @@ export async function seed(url: string) {
       .insert(schema.modifierOptions)
       .values([
         { modifierGroupId: phoSizeG.id, name: 'Regular', priceDeltaCents: 0, sortOrder: 10 },
-        { modifierGroupId: phoSizeG.id, name: 'Large', priceDeltaCents: 800, sortOrder: 20 },
+        { modifierGroupId: phoSizeG.id, name: 'Large', priceDeltaCents: legacyUsdCentsToVnd(800), sortOrder: 20 },
       ]);
     await db
       .insert(schema.modifierOptions)
       .values([
-        { modifierGroupId: phoExtrasG.id, name: 'Extra Wagyu', priceDeltaCents: 1200, sortOrder: 10 },
-        { modifierGroupId: phoExtrasG.id, name: 'Soft Egg', priceDeltaCents: 200, sortOrder: 20 },
-        { modifierGroupId: phoExtrasG.id, name: 'Extra Noodles', priceDeltaCents: 300, sortOrder: 30 },
+        { modifierGroupId: phoExtrasG.id, name: 'Extra Wagyu', priceDeltaCents: legacyUsdCentsToVnd(1200), sortOrder: 10 },
+        { modifierGroupId: phoExtrasG.id, name: 'Soft Egg', priceDeltaCents: legacyUsdCentsToVnd(200), sortOrder: 20 },
+        { modifierGroupId: phoExtrasG.id, name: 'Extra Noodles', priceDeltaCents: legacyUsdCentsToVnd(300), sortOrder: 30 },
       ]);
     await db
       .insert(schema.modifierOptions)
@@ -152,7 +158,7 @@ export async function seed(url: string) {
       .insert(schema.modifierOptions)
       .values([
         { modifierGroupId: iceG.id, name: '1 Scoop Vanilla', priceDeltaCents: 0, sortOrder: 10 },
-        { modifierGroupId: iceG.id, name: '2 Scoops Vanilla', priceDeltaCents: 250, sortOrder: 20 },
+        { modifierGroupId: iceG.id, name: '2 Scoops Vanilla', priceDeltaCents: legacyUsdCentsToVnd(250), sortOrder: 20 },
       ]);
 
     await db.insert(schema.menuItemModifierGroups).values([
@@ -279,7 +285,7 @@ export async function seed(url: string) {
       address?: { line1: string; district: string; city: string; notes?: string };
       lines: SeedOrderItem[];
       notes?: string;
-      stripePaid?: boolean;
+      payosPaid?: boolean;
     }) {
       const { subtotal, deliveryFeeCents, taxCents, total } = computeTotals(
         seed.fulfillment,
@@ -300,24 +306,25 @@ export async function seed(url: string) {
           deliveryAddress: seed.address ?? null,
           status: seed.status,
           paymentStatus: seed.payment,
-          currency: 'USD',
+          currency: restaurantConfig.currency,
           subtotalCents: subtotal,
           deliveryFeeCents,
           taxCents,
           totalCents: total,
           customerNotes: seed.notes,
           checkoutKey: `seed-${seed.code.toLowerCase()}`,
-          stripeCheckoutSessionId: seed.stripePaid ? `cs_seed_${seed.code.toLowerCase()}` : null,
+          payosOrderCode: seed.payosPaid ? 1_000_000_000 + Number(seed.code.slice(-4)) : null,
+          payosPaymentLinkId: seed.payosPaid ? `payos_seed_${seed.code.toLowerCase()}` : null,
           createdAt: localToUtc(dateOffset(seed.dayOffset), seed.time ?? '12:00'),
         })
         .returning();
 
-      if (seed.stripePaid) {
+      if (seed.payosPaid) {
         await db.insert(schema.payments).values({
           orderId: order.id,
-          stripeSessionId: `cs_seed_${seed.code.toLowerCase()}`,
+          payosPaymentLinkId: `payos_seed_${seed.code.toLowerCase()}`,
           amountCents: total,
-          currency: 'USD',
+          currency: restaurantConfig.currency,
           status: 'paid',
         });
       }
@@ -355,11 +362,11 @@ export async function seed(url: string) {
         fulfillment: 'pickup' as const, status: 'NEW' as const, payment: 'PAID' as const,
         dayOffset: 0, time: '18:15',
         lines: [
-          { itemId: wagyuPhoItem.id, name: wagyuPhoItem.name, unitPriceCents: wagyuPhoItem.priceCents, quantity: 1, modifiers: [{ group: 'Size', option: 'Regular', delta: 0 }, { group: 'Extras', option: 'Extra Wagyu', delta: 1200 }], instructions: 'Broth on the side.' },
+          { itemId: wagyuPhoItem.id, name: wagyuPhoItem.name, unitPriceCents: wagyuPhoItem.priceCents, quantity: 1, modifiers: [{ group: 'Size', option: 'Regular', delta: 0 }, { group: 'Extras', option: 'Extra Wagyu', delta: legacyUsdCentsToVnd(1200) }], instructions: 'Broth on the side.' },
           { itemId: eggMartiniItem.id, name: eggMartiniItem.name, unitPriceCents: eggMartiniItem.priceCents, quantity: 2, modifiers: [{ group: 'Sweetness', option: '50% Sweetness', delta: 0 }] },
         ],
         notes: 'Ring the bell on arrival.',
-        stripePaid: true,
+        payosPaid: true,
       },
       {
         code: 'SV-ORD-2402', name: 'Huy Le', email: 'huy@example.com', phone: '+84902223344',
@@ -368,9 +375,9 @@ export async function seed(url: string) {
         address: { line1: '12 Nguyen Hue', district: 'District 1', city: 'Ho Chi Minh City' },
         lines: [
           { itemId: duckItem.id, name: duckItem.name, unitPriceCents: duckItem.priceCents, quantity: 2, modifiers: [] },
-          { itemId: lavaItem.id, name: lavaItem.name, unitPriceCents: lavaItem.priceCents, quantity: 1, modifiers: [{ group: 'Ice Cream', option: '2 Scoops Vanilla', delta: 250 }] },
+          { itemId: lavaItem.id, name: lavaItem.name, unitPriceCents: lavaItem.priceCents, quantity: 1, modifiers: [{ group: 'Ice Cream', option: '2 Scoops Vanilla', delta: legacyUsdCentsToVnd(250) }] },
         ],
-        stripePaid: true,
+        payosPaid: true,
       },
       {
         code: 'SV-ORD-2403', name: 'Ngan Pham', email: 'ngan@example.com', phone: '+84903334455',
@@ -379,14 +386,14 @@ export async function seed(url: string) {
         lines: [
           { itemId: tofuItem.id, name: tofuItem.name, unitPriceCents: tofuItem.priceCents, quantity: 1, modifiers: [] },
         ],
-        stripePaid: true,
+        payosPaid: true,
       },
       {
         code: 'SV-ORD-2404', name: 'Tom Baker', email: 'tom@example.com', phone: '+84904445566',
         fulfillment: 'pickup' as const, status: 'PENDING' as const, payment: 'UNPAID' as const,
         dayOffset: 0, time: '20:00',
-        lines: [
-          { itemId: wagyuPhoItem.id, name: wagyuPhoItem.name, unitPriceCents: wagyuPhoItem.priceCents, quantity: 1, modifiers: [{ group: 'Size', option: 'Large', delta: 800 }] },
+      lines: [
+        { itemId: wagyuPhoItem.id, name: wagyuPhoItem.name, unitPriceCents: wagyuPhoItem.priceCents, quantity: 1, modifiers: [{ group: 'Size', option: 'Large', delta: legacyUsdCentsToVnd(800) }] },
         ],
         notes: 'Abandoned checkout demo.',
       },
@@ -408,9 +415,9 @@ export async function seed(url: string) {
       fulfillment: 'pickup' as const, status: 'COMPLETED' as const, payment: 'PAID' as const,
       dayOffset: -1, time: '12:30',
       lines: [
-        { itemId: wagyuPhoItem.id, name: wagyuPhoItem.name, unitPriceCents: wagyuPhoItem.priceCents, quantity: 2, modifiers: [{ group: 'Size', option: 'Regular', delta: 0 }, { group: 'Extras', option: 'Soft Egg', delta: 200 }, { group: 'Extras', option: 'Extra Noodles', delta: 300 }] },
+        { itemId: wagyuPhoItem.id, name: wagyuPhoItem.name, unitPriceCents: wagyuPhoItem.priceCents, quantity: 2, modifiers: [{ group: 'Size', option: 'Regular', delta: 0 }, { group: 'Extras', option: 'Soft Egg', delta: legacyUsdCentsToVnd(200) }, { group: 'Extras', option: 'Extra Noodles', delta: legacyUsdCentsToVnd(300) }] },
       ],
-      stripePaid: true,
+      payosPaid: true,
     });
     await insertOrder({
       code: 'SV-ORD-1902', name: 'Oscar Diaz', email: 'oscar@example.com', phone: '+84907778899',
@@ -421,7 +428,7 @@ export async function seed(url: string) {
         { itemId: duckItem.id, name: duckItem.name, unitPriceCents: duckItem.priceCents, quantity: 1, modifiers: [] },
         { itemId: eggMartiniItem.id, name: eggMartiniItem.name, unitPriceCents: eggMartiniItem.priceCents, quantity: 1, modifiers: [{ group: 'Sweetness', option: '100% Sweetness', delta: 0 }] },
       ],
-      stripePaid: true,
+      payosPaid: true,
     });
 
     // ── Contact inquiry + newsletter samples ──────────────────────────

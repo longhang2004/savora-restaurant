@@ -3,7 +3,7 @@
 /**
  * Guest checkout form. The cart (ids + quantities + modifier option ids)
  * is sent to the server, which reloads products, validates everything and
- * computes the authoritative totals before creating the Stripe session.
+ * computes the authoritative totals before creating the PayOS payment link.
  */
 import React, { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';

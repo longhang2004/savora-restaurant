@@ -2,7 +2,7 @@
  * Savora database schema (Drizzle ORM, PostgreSQL).
  *
  * Conventions:
- *  - Money is always integer minor units (`*_cents`), never floats.
+ *  - Money is always integer minor units (`*_cents` legacy column names), never floats.
  *  - Timestamps are `timestamptz` and stored in UTC.
  *  - Order/product snapshots keep historical names & prices immutable.
  */
@@ -236,7 +236,7 @@ export const orders = pgTable(
     } | null>(),
     status: orderStatusEnum('status').notNull().default('PENDING'),
     paymentStatus: paymentStatusEnum('payment_status').notNull().default('UNPAID'),
-    currency: text('currency').notNull().default('USD'),
+    currency: text('currency').notNull().default('VND'),
     subtotalCents: integer('subtotal_cents').notNull(),
     deliveryFeeCents: integer('delivery_fee_cents').notNull().default(0),
     taxCents: integer('tax_cents').notNull().default(0),
@@ -244,6 +244,9 @@ export const orders = pgTable(
     customerNotes: text('customer_notes'),
     checkoutKey: text('checkout_key').notNull().unique(),
     checkoutFingerprint: text('checkout_fingerprint').notNull().default(''),
+    payosOrderCode: integer('payos_order_code').unique(),
+    payosPaymentLinkId: text('payos_payment_link_id').unique(),
+    payosCheckoutUrl: text('payos_checkout_url'),
     stripeCheckoutSessionId: text('stripe_checkout_session_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
@@ -303,8 +306,9 @@ export const payments = pgTable(
       .notNull()
       .references(() => orders.id, { onDelete: 'restrict' }),
     stripeSessionId: text('stripe_session_id').unique(),
+    payosPaymentLinkId: text('payos_payment_link_id').unique(),
     amountCents: integer('amount_cents').notNull(),
-    currency: text('currency').notNull().default('USD'),
+    currency: text('currency').notNull().default('VND'),
     status: text('status').notNull().default('pending'), // pending | paid
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
@@ -323,6 +327,17 @@ export const stripeWebhookEvents = pgTable(
     processedAt: timestamp('processed_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index('stripe_webhook_events_type_idx').on(table.eventType)],
+);
+
+export const payosWebhookEvents = pgTable(
+  'payos_webhook_events',
+  {
+    eventKey: text('event_key').primaryKey(),
+    paymentLinkId: text('payment_link_id').notNull(),
+    reference: text('reference').notNull(),
+    processedAt: timestamp('processed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('payos_webhook_events_link_idx').on(table.paymentLinkId)],
 );
 
 // ─── Admin ────────────────────────────────────────────────────────────

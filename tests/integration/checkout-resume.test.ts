@@ -29,7 +29,7 @@ async function insertOrder(
       fulfillmentType: 'pickup',
       status,
       paymentStatus,
-      currency: 'USD',
+      currency: 'VND',
       subtotalCents: 1000,
       deliveryFeeCents: 0,
       taxCents: 50,

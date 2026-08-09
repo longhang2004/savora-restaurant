@@ -1,4 +1,4 @@
-/** Secure server-side lookup for a Stripe cancellation return. */
+/** Secure server-side lookup for a payment cancellation return. */
 import 'server-only';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db/client';

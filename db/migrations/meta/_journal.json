@@ -15,6 +15,13 @@
       "when": 1786183483454,
       "tag": "0001_first_grandmaster",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786204238330,
+      "tag": "0002_past_pyro",
+      "breakpoints": true
     }
   ]
 }

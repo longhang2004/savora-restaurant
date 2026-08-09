@@ -1,7 +1,7 @@
 /**
  * Payment confirmation — the single source of truth for "paid".
  *
- * Both the Stripe webhook and the DEMO_MODE sandbox funnel through
+ * Both the PayOS webhook and the DEMO_MODE sandbox funnel through
  * markOrderPaid, which is idempotent: the UNPAID→PAID transition is
  * guarded atomically, so duplicate webhooks / double-clicks are no-ops.
  * Reaching /checkout/success never marks anything paid.
@@ -19,7 +19,7 @@ import { escapeHtml } from '@/lib/email/html';
 
 export async function markOrderPaid(
   orderId: string,
-  stripeSessionId: string | null,
+  payment: { payosPaymentLinkId?: string | null; stripeSessionId?: string | null } = {},
 ): Promise<'paid' | 'already_paid'> {
   const result = await db.transaction(async (tx) => {
     // Atomic guard: only a PENDING/UNPAID order can become PAID.
@@ -27,7 +27,8 @@ export async function markOrderPaid(
       .update(orders)
       .set({
         paymentStatus: 'PAID',
-        stripeCheckoutSessionId: stripeSessionId ?? undefined,
+        payosPaymentLinkId: payment.payosPaymentLinkId ?? undefined,
+        stripeCheckoutSessionId: payment.stripeSessionId ?? undefined,
         status: sql`CASE WHEN ${orders.status} = 'PENDING' THEN 'NEW' ELSE ${orders.status} END`,
       })
       .where(
@@ -45,7 +46,8 @@ export async function markOrderPaid(
     try {
       await tx.insert(payments).values({
         orderId: order.id,
-        stripeSessionId: stripeSessionId ?? undefined,
+        payosPaymentLinkId: payment.payosPaymentLinkId ?? undefined,
+        stripeSessionId: payment.stripeSessionId ?? undefined,
         amountCents: order.totalCents,
         currency: order.currency,
         status: 'paid',

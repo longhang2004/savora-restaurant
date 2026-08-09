@@ -2,7 +2,7 @@
  * E2E — customer commerce flow (demo-mode payment).
  *
  * menu → configure modifiers → cart → guest checkout → sandbox payment
- * (simulates the Stripe webhook) → real order confirmation page.
+ * (simulates the PayOS webhook) → real order confirmation page.
  */
 import { expect, test } from '@playwright/test';
 
@@ -36,7 +36,7 @@ test('orders a configured dish through checkout and confirms payment', async ({ 
   await page.getByText('Phone').locator('..').locator('input').fill('+84900002222');
   await page.getByRole('button', { name: 'Continue to Payment' }).click();
 
-  // Demo mode (no Stripe key) → sandbox payment page
+  // Demo mode (no PayOS credentials) → sandbox payment page
   await expect(page).toHaveURL(/\/checkout\/sandbox\?order=SV-/);
   const sandboxUrl = page.url();
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem('savora-cart-v1'))).not.toBeNull();

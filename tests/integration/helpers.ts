@@ -9,6 +9,7 @@ import { sql } from 'drizzle-orm';
 import * as schema from '../../src/lib/db/schema';
 
 export const ALL_TABLES = [
+  'payos_webhook_events',
   'stripe_webhook_events',
   'payments',
   'order_item_modifiers',
@@ -81,7 +82,7 @@ export async function seedMenuFixtures(db: ReturnType<typeof drizzle<typeof sche
       name: 'A5 Wagyu Beef Phở',
       slug: 'a5-wagyu-beef-pho',
       description: '36-hour bone broth with A5 wagyu.',
-      priceCents: 4200,
+      priceCents: 1_100_000,
       isFeatured: true,
       isAvailable: true,
     },
@@ -91,7 +92,7 @@ export async function seedMenuFixtures(db: ReturnType<typeof drizzle<typeof sche
       name: 'Egg Coffee Martini',
       slug: 'egg-coffee-martini',
       description: 'Espresso, vodka, velvety foam.',
-      priceCents: 1500,
+      priceCents: 393_000,
       isAvailable: true,
     },
     {
@@ -100,7 +101,7 @@ export async function seedMenuFixtures(db: ReturnType<typeof drizzle<typeof sche
       name: 'Lotus Tea',
       slug: 'lotus-tea',
       description: 'Lotus-scented green tea.',
-      priceCents: 600,
+      priceCents: 157_000,
       isAvailable: false,
     },
   ]);
@@ -113,10 +114,10 @@ export async function seedMenuFixtures(db: ReturnType<typeof drizzle<typeof sche
 
   await db.insert(schema.modifierOptions).values([
     { id: IDS.optRegular, modifierGroupId: IDS.phoSizeGroup, name: 'Regular', priceDeltaCents: 0, sortOrder: 10 },
-    { id: IDS.optLarge, modifierGroupId: IDS.phoSizeGroup, name: 'Large', priceDeltaCents: 800, sortOrder: 20 },
-    { id: IDS.optWagyu, modifierGroupId: IDS.phoExtrasGroup, name: 'Extra Wagyu', priceDeltaCents: 1200, sortOrder: 10 },
-    { id: IDS.optEgg, modifierGroupId: IDS.phoExtrasGroup, name: 'Soft Egg', priceDeltaCents: 200, sortOrder: 20 },
-    { id: IDS.optNoodles, modifierGroupId: IDS.phoExtrasGroup, name: 'Extra Noodles', priceDeltaCents: 300, sortOrder: 30 },
+    { id: IDS.optLarge, modifierGroupId: IDS.phoSizeGroup, name: 'Large', priceDeltaCents: 210_000, sortOrder: 20 },
+    { id: IDS.optWagyu, modifierGroupId: IDS.phoExtrasGroup, name: 'Extra Wagyu', priceDeltaCents: 314_000, sortOrder: 10 },
+    { id: IDS.optEgg, modifierGroupId: IDS.phoExtrasGroup, name: 'Soft Egg', priceDeltaCents: 52_000, sortOrder: 20 },
+    { id: IDS.optNoodles, modifierGroupId: IDS.phoExtrasGroup, name: 'Extra Noodles', priceDeltaCents: 79_000, sortOrder: 30 },
     { id: IDS.optSweet50, modifierGroupId: IDS.martiniSweetnessGroup, name: '50% Sweetness', priceDeltaCents: 0, sortOrder: 10 },
   ]);
 

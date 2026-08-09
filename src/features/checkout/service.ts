@@ -5,10 +5,10 @@
  * 2. Price genuinely new checkouts from current menu data; existing retries
  *    use their persisted immutable order snapshots.
  * 3. Create a PENDING order with immutable item/modifier snapshots.
- * 4. Hand off to Stripe Checkout (or the DEMO_MODE sandbox).
+ * 4. Hand off to PayOS (or the DEMO_MODE sandbox).
  */
 import 'server-only';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import { restaurantConfig } from '@/config/restaurant';
 import { isDemoMode } from '@/config/env';
@@ -19,11 +19,15 @@ import { percentOfCents } from '@/lib/money';
 import { localDateTimeToUtc } from '@/lib/time';
 import { priceAndValidateCart, validateCartLineShape } from '@/features/orders/pricing';
 import {
-  createCheckoutSession,
-  retrieveReusableCheckoutSession,
-  stripeConfigured,
-  type CheckoutSessionLine,
-} from '@/features/payments/stripe';
+  createPayOSPaymentLink,
+  generatePayOSOrderCode,
+  payosConfigured,
+  payOSCheckoutUrl,
+  retrievePayOSPaymentLink,
+  retrievePayOSPaymentLinkByOrderCode,
+  type PayOSPaymentLine,
+  type PayOSPaymentLinkLookup,
+} from '@/features/payments/payos';
 import { checkoutSchema, type CheckoutInput } from './validation';
 import { createCheckoutFingerprint } from './fingerprint';
 import { createOrderAccessToken, orderSuccessUrl } from './access';
@@ -31,7 +35,7 @@ import { isPaymentRetryableOrder } from './resume';
 import { validateScheduledOrderTime } from './scheduling';
 
 export interface CheckoutResult {
-  mode: 'stripe' | 'sandbox';
+  mode: 'payos' | 'sandbox';
   url: string;
   publicCode: string;
   totalCents: number;
@@ -87,7 +91,7 @@ export async function createCheckoutOrder(rawInput: CheckoutInput): Promise<Chec
   });
 
   if (existing) {
-    return resumeCheckout(existing, checkoutFingerprint, input.checkoutKey);
+    return resumeCheckout(existing, checkoutFingerprint);
   }
 
   // Only a genuinely new logical checkout reads current menu prices.
@@ -114,7 +118,7 @@ export async function createCheckoutOrder(rawInput: CheckoutInput): Promise<Chec
               : null,
             status: 'PENDING',
             paymentStatus: 'UNPAID',
-            currency: 'USD',
+            currency: restaurantConfig.currency,
             subtotalCents: priced.subtotalCents,
             deliveryFeeCents,
             taxCents,
@@ -156,17 +160,12 @@ export async function createCheckoutOrder(rawInput: CheckoutInput): Promise<Chec
       return await handOffToPayment(
         order,
         priced.lines,
-        input.checkoutKey,
       );
     } catch (err) {
       if (isUniqueViolation(err)) {
         const racedOrder = await findCheckoutOrder(input.checkoutKey);
         if (racedOrder) {
-          return resumeCheckout(
-            racedOrder,
-            checkoutFingerprint,
-            input.checkoutKey,
-          );
+          return resumeCheckout(racedOrder, checkoutFingerprint);
         }
         if (attempt < 2) {
           continue; // order-code collision — regenerate
@@ -185,12 +184,11 @@ export async function createCheckoutOrder(rawInput: CheckoutInput): Promise<Chec
 
 async function handOffToPayment(
   order: typeof orders.$inferSelect,
-  lines: CheckoutSessionLine[],
-  checkoutKey: string,
+  lines: PayOSPaymentLine[],
 ): Promise<CheckoutResult> {
   if (order.paymentStatus === 'PAID') {
     return {
-      mode: order.stripeCheckoutSessionId ? 'stripe' : 'sandbox',
+      mode: order.payosPaymentLinkId ? 'payos' : 'sandbox',
       url: orderSuccessUrl(order.id, order.publicCode),
       publicCode: order.publicCode,
       totalCents: order.totalCents,
@@ -205,40 +203,9 @@ async function handOffToPayment(
     );
   }
 
-  if (stripeConfigured()) {
+  if (payosConfigured()) {
     const accessToken = createOrderAccessToken(order.id, order.publicCode);
-    if (order.stripeCheckoutSessionId) {
-      const reusable = await retrieveReusableCheckoutSession(order.stripeCheckoutSessionId, accessToken);
-      if (reusable?.state === 'complete') {
-        return {
-          mode: 'stripe',
-          url: orderSuccessUrl(order.id, order.publicCode),
-          publicCode: order.publicCode,
-          totalCents: order.totalCents,
-        };
-      }
-      if (reusable?.state === 'open') {
-        return {
-          mode: 'stripe',
-          url: reusable.url,
-          publicCode: order.publicCode,
-          totalCents: order.totalCents,
-        };
-      }
-    }
-
-    const { sessionId, url } = await createCheckoutSession({
-      order,
-      lines,
-      deliveryFeeCents: order.deliveryFeeCents,
-      taxCents: order.taxCents,
-      checkoutKey: order.stripeCheckoutSessionId
-        ? `${checkoutKey}:${order.stripeCheckoutSessionId}:retry`
-        : checkoutKey,
-      accessToken,
-    });
-    await db.update(orders).set({ stripeCheckoutSessionId: sessionId }).where(eq(orders.id, order.id));
-    return { mode: 'stripe', url, publicCode: order.publicCode, totalCents: order.totalCents };
+    return handOffToPayOS(order, lines, accessToken);
   }
 
   if (isDemoMode) {
@@ -266,7 +233,6 @@ async function findCheckoutOrder(checkoutKey: string) {
 async function resumeCheckout(
   order: typeof orders.$inferSelect,
   fingerprint: string,
-  checkoutKey: string,
 ): Promise<CheckoutResult> {
   if (order.checkoutFingerprint !== fingerprint) {
     throw new AppError(
@@ -277,7 +243,7 @@ async function resumeCheckout(
   }
 
   if (order.paymentStatus === 'PAID') {
-    return handOffToPayment(order, [], checkoutKey);
+    return handOffToPayment(order, []);
   }
 
   if (!isPaymentRetryableOrder(order)) {
@@ -289,12 +255,12 @@ async function resumeCheckout(
   }
 
   const lines = await loadPersistedPaymentLines(order);
-  return handOffToPayment(order, lines, checkoutKey);
+  return handOffToPayment(order, lines);
 }
 
 async function loadPersistedPaymentLines(
   order: typeof orders.$inferSelect,
-): Promise<CheckoutSessionLine[]> {
+): Promise<PayOSPaymentLine[]> {
   const items = await db
     .select({
       itemName: orderItems.itemName,
@@ -321,4 +287,148 @@ async function loadPersistedPaymentLines(
     unitPriceCents,
     quantity,
   }));
+}
+
+async function handOffToPayOS(
+  order: typeof orders.$inferSelect,
+  lines: PayOSPaymentLine[],
+  accessToken: string,
+): Promise<CheckoutResult> {
+  if (order.payosPaymentLinkId) {
+    const link = await retrievePayOSPaymentLink(order.payosPaymentLinkId);
+    const handled = await handOffExistingPayOSLink(order, link);
+    if (handled) return handled;
+
+    // A cancelled, expired, or failed link cannot be paid. Allocate a new
+    // provider order code before creating the next payment attempt.
+    const replacement = await replacePayOSAttempt(order);
+    if (!replacement.owned) {
+      return handOffToPayOS(replacement.order, lines, accessToken);
+    }
+    return createAndPersistPayOSLink(replacement.order, lines, accessToken);
+  }
+
+  if (order.payosOrderCode) {
+    // A previous create request may have succeeded remotely but failed before
+    // its response was persisted. Recover by the pre-reserved provider code;
+    // never create a second link for that code from a retry.
+    const link = await retrievePayOSPaymentLinkByOrderCode(order.payosOrderCode);
+    const recovered = await handOffExistingPayOSLink(order, link);
+    if (recovered) return recovered;
+    throw new AppError(
+      ErrorCodes.PAYMENT_NOT_CONFIRMED,
+      'Your earlier payment attempt needs review before another payment can be started.',
+      { status: 409 },
+    );
+  }
+
+  const initial = await reserveInitialPayOSAttempt(order);
+  if (!initial.owned) {
+    return handOffToPayOS(initial.order, lines, accessToken);
+  }
+  return createAndPersistPayOSLink(initial.order, lines, accessToken);
+}
+
+async function handOffExistingPayOSLink(
+  order: typeof orders.$inferSelect,
+  link: PayOSPaymentLinkLookup,
+): Promise<CheckoutResult | null> {
+  if (link.state === 'pending') {
+    const url = order.payosCheckoutUrl ?? payOSCheckoutUrl(link.paymentLinkId);
+    if (!order.payosCheckoutUrl || order.payosPaymentLinkId !== link.paymentLinkId) {
+      await db
+        .update(orders)
+        .set({ payosPaymentLinkId: link.paymentLinkId, payosCheckoutUrl: url })
+        .where(eq(orders.id, order.id));
+    }
+    return { mode: 'payos', url, publicCode: order.publicCode, totalCents: order.totalCents };
+  }
+  if (link.state === 'paid' || link.state === 'processing') {
+    // Webhook delivery may lag the provider. The confirmation page only uses
+    // DB truth and therefore never clears the cart or fulfills prematurely.
+    return {
+      mode: 'payos',
+      url: orderSuccessUrl(order.id, order.publicCode),
+      publicCode: order.publicCode,
+      totalCents: order.totalCents,
+    };
+  }
+  if (link.state === 'manual_review') {
+    throw new AppError(
+      ErrorCodes.PAYMENT_NOT_CONFIRMED,
+      'PayOS reported a partial payment. Please contact the restaurant before retrying.',
+      { status: 409 },
+    );
+  }
+  return null;
+}
+
+interface PayOSAttemptReservation {
+  order: typeof orders.$inferSelect;
+  /** Only the request that atomically wrote the code may create a provider link. */
+  owned: boolean;
+}
+
+async function reserveInitialPayOSAttempt(order: typeof orders.$inferSelect): Promise<PayOSAttemptReservation> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const [reserved] = await db
+      .update(orders)
+      .set({ payosOrderCode: generatePayOSOrderCode() })
+      .where(and(eq(orders.id, order.id), isNull(orders.payosOrderCode)))
+      .returning();
+    if (reserved) return { order: reserved, owned: true };
+
+    const [current] = await db.select().from(orders).where(eq(orders.id, order.id));
+    if (!current) throw new AppError(ErrorCodes.ORDER_NOT_FOUND, 'Order not found.', { status: 404 });
+    if (current.payosOrderCode) return { order: current, owned: false };
+  }
+  throw new AppError(ErrorCodes.INTERNAL, 'Could not reserve a PayOS payment attempt.', { status: 500 });
+}
+
+async function replacePayOSAttempt(order: typeof orders.$inferSelect): Promise<PayOSAttemptReservation> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const [replacement] = await db
+      .update(orders)
+      .set({
+        payosOrderCode: generatePayOSOrderCode(),
+        payosPaymentLinkId: null,
+        payosCheckoutUrl: null,
+      })
+      .where(
+        and(
+          eq(orders.id, order.id),
+          eq(orders.payosPaymentLinkId, order.payosPaymentLinkId!),
+          eq(orders.payosOrderCode, order.payosOrderCode!),
+        ),
+      )
+      .returning();
+    if (replacement) return { order: replacement, owned: true };
+
+    const [current] = await db.select().from(orders).where(eq(orders.id, order.id));
+    if (!current) throw new AppError(ErrorCodes.ORDER_NOT_FOUND, 'Order not found.', { status: 404 });
+    if (current.payosPaymentLinkId !== order.payosPaymentLinkId || current.payosOrderCode !== order.payosOrderCode) {
+      return { order: current, owned: false };
+    }
+  }
+  throw new AppError(ErrorCodes.INTERNAL, 'Could not reserve a replacement PayOS payment attempt.', { status: 500 });
+}
+
+async function createAndPersistPayOSLink(
+  order: typeof orders.$inferSelect,
+  lines: PayOSPaymentLine[],
+  accessToken: string,
+): Promise<CheckoutResult> {
+  if (!order.payosOrderCode) {
+    throw new AppError(ErrorCodes.INTERNAL, 'PayOS payment attempt was not reserved.', { status: 500 });
+  }
+  const link = await createPayOSPaymentLink({ order, lines, orderCode: order.payosOrderCode, accessToken });
+  const [updated] = await db
+    .update(orders)
+    .set({ payosPaymentLinkId: link.paymentLinkId, payosCheckoutUrl: link.checkoutUrl })
+    .where(and(eq(orders.id, order.id), eq(orders.payosOrderCode, order.payosOrderCode)))
+    .returning();
+  if (!updated || updated.payosPaymentLinkId !== link.paymentLinkId) {
+    throw new AppError(ErrorCodes.INTERNAL, 'Could not persist the PayOS payment attempt.', { status: 500 });
+  }
+  return { mode: 'payos', url: link.checkoutUrl, publicCode: updated.publicCode, totalCents: updated.totalCents };
 }

@@ -24,7 +24,7 @@ export async function createCheckoutAction(input: CheckoutInput) {
 }
 
 /**
- * DEMO_MODE-only: simulates the Stripe webhook for local demos.
+ * DEMO_MODE-only: simulates the PayOS webhook for local demos.
  * Calls the exact same idempotent payment-confirmation service the
  * webhook uses — this is not a separate "fake paid" code path.
  */
@@ -46,7 +46,7 @@ export async function demoConfirmPaymentAction(input: { publicCode: string; acce
       throw new AppError(ErrorCodes.ORDER_NOT_FOUND, 'Order not found.', { status: 404 });
     }
 
-    await markOrderPaid(order.id, `cs_demo_${order.publicCode}`);
+    await markOrderPaid(order.id);
     revalidatePath('/checkout/success');
     revalidatePath('/checkout/sandbox');
     revalidatePath('/admin/orders');

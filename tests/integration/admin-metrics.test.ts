@@ -14,7 +14,7 @@ const baseOrder = {
   fulfillmentType: 'pickup' as const,
   status: 'NEW' as const,
   paymentStatus: 'PAID' as const,
-  currency: 'USD',
+  currency: 'VND',
   subtotalCents: 1000,
   deliveryFeeCents: 0,
   taxCents: 50,
@@ -41,9 +41,9 @@ async function insertPaidOrder(
 
   await db.insert(payments).values({
     orderId: order.id,
-    stripeSessionId: `cs_${publicCode}`,
+    payosPaymentLinkId: `payos_${publicCode}`,
     amountCents: totalCents,
-    currency: 'USD',
+    currency: 'VND',
     status: 'paid',
     createdAt: paymentCreatedAt,
   });

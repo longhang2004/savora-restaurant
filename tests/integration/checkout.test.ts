@@ -46,12 +46,12 @@ const phoLine = (overrides: Partial<{ quantity: number; modifierOptionIds: strin
 describe('server-authoritative pricing', () => {
   it('prices lines from the database, not the client', async () => {
     const priced = await priceAndValidateCart([phoLine({ modifierOptionIds: [IDS.optLarge, IDS.optWagyu] })]);
-    expect(priced.subtotalCents).toBe(4200 + 800 + 1200); // 6200
+    expect(priced.subtotalCents).toBe(1_100_000 + 210_000 + 314_000);
 
     // Change the price in the DB → next pricing run uses it.
-    await db.update(menuItems).set({ priceCents: 9999 }).where(eq(menuItems.id, IDS.pho));
+    await db.update(menuItems).set({ priceCents: 999_000 }).where(eq(menuItems.id, IDS.pho));
     const repriced = await priceAndValidateCart([phoLine()]);
-    expect(repriced.subtotalCents).toBe(9999);
+    expect(repriced.subtotalCents).toBe(999_000);
   });
 
   it('ignores client-supplied price fields (spoofing attempt)', async () => {
@@ -68,11 +68,11 @@ describe('server-authoritative pricing', () => {
         },
       ],
     });
-    expect(result.mode).toBe('sandbox'); // no Stripe configured → demo sandbox
+    expect(result.mode).toBe('sandbox'); // no PayOS configured → demo sandbox
     expect(result.url).toMatch(/\/checkout\/sandbox\?order=SV-[^&]+&token=[A-Za-z0-9_-]+$/);
 
     const [order] = await db.select().from(orders).where(eq(orders.checkoutKey, 'ck_test_spoof_0002'));
-    expect(order.subtotalCents).toBe(9999); // DB price, not 1
+    expect(order.subtotalCents).toBe(999_000); // DB price, not 1
   });
 
   it('computes delivery fee and tax correctly', async () => {
@@ -85,9 +85,9 @@ describe('server-authoritative pricing', () => {
     });
     void result;
     const [order] = await db.select().from(orders).where(eq(orders.checkoutKey, 'ck_test_delivery_0003'));
-    expect(order.subtotalCents).toBe(9999 * 2);
-    expect(order.deliveryFeeCents).toBe(500);
-    expect(order.taxCents).toBe(Math.round((9999 * 2 * 500) / 10_000));
+    expect(order.subtotalCents).toBe(999_000 * 2);
+    expect(order.deliveryFeeCents).toBe(131_000);
+    expect(order.taxCents).toBe(Math.round((999_000 * 2 * 500) / 10_000));
     expect(order.totalCents).toBe(order.subtotalCents + order.deliveryFeeCents + order.taxCents);
     expect(order.status).toBe('PENDING');
     expect(order.paymentStatus).toBe('UNPAID');
@@ -185,8 +185,8 @@ describe('order snapshots', () => {
     const [order] = await db.select().from(orders).where(eq(orders.checkoutKey, 'ck_test_snapshot_0006'));
     const [item] = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
     expect(item.itemName).toBe('A5 Wagyu Beef Phở');
-    // unit price includes the selected modifier deltas (9999 + 1200)
-    expect(item.unitPriceCents).toBe(11199);
+    // Unit price includes the persisted VND modifier delta (999,000 + 314,000).
+    expect(item.unitPriceCents).toBe(1_313_000);
 
     // Menu changes after the order…
     await db
@@ -197,7 +197,7 @@ describe('order snapshots', () => {
     // …must not mutate the stored snapshot.
     const [after] = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
     expect(after.itemName).toBe('A5 Wagyu Beef Phở');
-    expect(after.unitPriceCents).toBe(11199);
+    expect(after.unitPriceCents).toBe(1_313_000);
 
     const mods = await db
       .select()
@@ -205,7 +205,7 @@ describe('order snapshots', () => {
       .where(eq(orderItemModifiers.orderItemId, item.id));
     expect(mods).toHaveLength(2);
     expect(mods.map((m) => m.optionName).sort()).toEqual(['Extra Wagyu', 'Regular']);
-    expect(mods.map((m) => m.priceDeltaCents).sort((a, b) => a - b)).toEqual([0, 1200]);
+    expect(mods.map((m) => m.priceDeltaCents).sort((a, b) => a - b)).toEqual([0, 314_000]);
   });
 });
 

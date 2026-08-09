@@ -2,11 +2,11 @@
 
 A production-minded restaurant application built on a polished dark-luxury frontend:
 **real reservations with a table-aware availability engine, server-authoritative
-ecommerce with configurable products, Stripe payments with verified webhooks,
+ecommerce with configurable products, PayOS payments with verified webhooks,
 and a protected restaurant operations console.**
 
 Built with **Next.js 16 (App Router)**, **React 19**, **TypeScript**, **PostgreSQL**,
-**Drizzle ORM**, **Zod**, **Stripe**, **Resend**, **Supabase Auth** (optional),
+**Drizzle ORM**, **Zod**, **PayOS**, **Resend**, **Supabase Auth** (optional),
 **Framer Motion**, and **CSS Modules**.
 
 ---
@@ -22,11 +22,10 @@ demonstrating freelance-grade skills:
 - **Server-authoritative ecommerce** — prices, modifiers, availability and order
   totals are reloaded and recomputed on the server; orders store immutable
   order-time snapshots.
-- **Reliable Stripe payment lifecycle** — Checkout Sessions, signature-verified
-  webhooks, idempotent event processing; a success URL alone never marks an order paid.
-  Cancelled Checkout returns resume the same token-verified pending order, while
-  paid retries go straight to confirmation. Completed Stripe Sessions are never
-  replaced while webhook state catches up; only expired Sessions can be retried.
+- **Reliable PayOS payment lifecycle** — signature-verified webhooks and
+  idempotent bank-transfer processing; a browser return URL alone never marks an
+  order paid. Pending links are reused; `PAID`/`PROCESSING` links are never
+  replaced while the webhook state catches up; only terminal unpaid links can be replaced.
 - **Restaurant operations** — protected staff console for reservations, order
   fulfillment, menu editing and sold-out control, with a small dashboard.
 
@@ -46,7 +45,7 @@ src/
     menu/                 # DB queries + server-side modifier validation
     orders/               # server pricing, status lifecycle
     checkout/             # validation + checkout orchestration
-    payments/             # Stripe client, webhook processing, payment confirmation
+    payments/             # PayOS client, webhook processing, payment confirmation
     contact/              # inquiry persistence + notification
     newsletter/           # subscription persistence
     admin/                # read models + admin mutations (authorized)
@@ -62,14 +61,15 @@ db/
   local-db.ts             # embedded PostgreSQL for local dev/tests
 tests/
   unit/                   # Vitest: slots, engine, modifiers, status, time, money
-  integration/            # Vitest + real PostgreSQL: concurrency, checkout, Stripe
+  integration/            # Vitest + real PostgreSQL: concurrency, checkout, PayOS
   e2e/                    # Playwright critical flows
 ```
 
 Key design decisions:
 
-- **Money** is integer cents everywhere (`*_cents`); tax uses basis points with
-  integer rounding.
+- **Money** is integer VND everywhere. Legacy `*_cents` database-column names
+  remain for migration compatibility; VND has no fractional minor unit. Tax uses
+  basis points with integer rounding.
 - **Timestamps** are `timestamptz` (UTC). Restaurant-local dates/times
   (`Asia/Ho_Chi_Minh`) are derived via timezone-aware helpers — never
   `new Date().toISOString().split('T')[0]`.
@@ -81,8 +81,8 @@ Key design decisions:
   checkout reloads products from the DB, validates every modifier (ownership,
   availability, min/max), and computes subtotal/tax/fee/total on the server.
 - **Payment truth**: `markOrderPaid()` is the single idempotent confirmation path,
-  triggered by the signed Stripe webhook (or the gated demo simulation). Duplicate
-  webhook deliveries are deduplicated via a unique `stripe_webhook_events` PK.
+  triggered by the signed PayOS webhook (or the gated demo simulation). Duplicate
+  bank-transfer deliveries are deduplicated by payment-link id and bank reference.
 - **Admin security**: middleware redirect is UX only; every admin page and
   mutation re-verifies a signed session JWT server-side. Admin URLs are
   `noindex` and disallowed in `robots.txt`.
@@ -133,8 +133,7 @@ seeds demo data. It wipes and reseeds on every start so demos are deterministic.
 | `SESSION_SECRET` | ✅ | ≥32 chars; signs admin session JWTs |
 | `DEMO_MODE` | — | `true` enables sandbox payment + demo admin sign-in (never in production) |
 | `DEMO_ADMIN_EMAIL` / `DEMO_ADMIN_PASSWORD` | — | Demo-mode admin credentials |
-| `STRIPE_SECRET_KEY` | — | Stripe test key; checkout uses real Checkout Sessions when set |
-| `STRIPE_WEBHOOK_SECRET` | — | Verifies webhook signatures (`whsec_…`) |
+| `PAYOS_CLIENT_ID` / `PAYOS_API_KEY` / `PAYOS_CHECKSUM_KEY` | — | PayOS payment-channel credentials; all three enable real payment links and webhook verification |
 | `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | — | Transactional email; skipped (logged) when absent |
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | — | Production admin auth (Supabase Auth) |
 | `NEXT_PUBLIC_SITE_URL` | — | Defaults to `https://savora-restaurant.vercel.app` |
@@ -156,10 +155,10 @@ pnpm db:studio          # Drizzle Studio
 Main tables: `menu_categories`, `menu_items`, `modifier_groups`,
 `modifier_options`, `menu_item_modifier_groups`, `dining_tables`, `reservations`,
 `reservation_tables`, `orders`, `order_items`, `order_item_modifiers`, `payments`,
-`stripe_webhook_events`, `contact_inquiries`, `newsletter_subscribers`,
+`payos_webhook_events`, `contact_inquiries`, `newsletter_subscribers`,
 `admin_profiles`.
 
-Seed data: the original 14-dish menu (prices converted to cents), modifier groups
+Seed data: the original 14-dish menu (prices converted to VND at a pinned rate), modifier groups
 (Wagyu Phở size/extras, cocktail sweetness, lava-cake ice cream), one sold-out
 item, 6 dining tables (T01–T05 + private P01), reservations/orders generated
 relative to the current date, and sample contact/newsletter rows.
@@ -170,7 +169,7 @@ relative to the current date, and sample contact/newsletter rows.
 pnpm test               # Vitest unit + integration suites (not browser E2E)
 pnpm test:unit          # pure domain tests — slots, engine, modifiers, status…
 pnpm test:integration   # real-PostgreSQL: concurrency double-booking, checkout,
-                        # Stripe webhook (real signature verification, no network)
+                        # PayOS webhook checksum verification (no network)
 pnpm test:e2e           # Playwright critical flows (builds, boots DB + prod server)
 pnpm test:e2e:install   # download the Chromium browser once
 ```
@@ -181,23 +180,15 @@ bundle itself, so `pnpm test:e2e` is reproducible from a fresh checkout.
 For the complete local verification pass, run lint, typecheck, unit tests,
 integration tests, `pnpm build`, and then `pnpm test:e2e`.
 
-## Stripe webhook — local development
+## PayOS payment setup
 
-With the CLI:
-
-```bash
-stripe login
-stripe listen --forward-to localhost:3000/api/webhooks/stripe
-# copy the whsec_… into STRIPE_WEBHOOK_SECRET in .env.local and restart
-```
-
-Set `STRIPE_SECRET_KEY` to a test key and checkout redirects to Stripe-hosted
-Checkout. The server-side integration does not require a publishable key.
-Without Stripe keys, `DEMO_MODE`
-checkout uses the sandbox payment page, which runs the same server-side
-confirmation path the webhook would (clearly labeled, production-gated). A
-verified paid confirmation clears the browser cart; pending or invalid
-confirmation URLs do not.
+Set the three `PAYOS_*` values from a PayOS payment channel. The deployed public
+webhook endpoint is `https://<your-domain>/api/webhooks/payos`; confirm it in
+PayOS after deployment. PayOS does not provide a separate sandbox, so perform a
+small real payment only after the webhook URL is live. Without PayOS credentials,
+`DEMO_MODE` checkout uses the local sandbox page; it follows the same guarded
+payment-confirmation service and is production-gated. Verified paid confirmation
+clears the cart; pending or invalid confirmation URLs do not.
 
 ## Supabase setup (production admin auth)
 

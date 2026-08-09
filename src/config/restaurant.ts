@@ -17,7 +17,7 @@ export const restaurantConfig = {
   /** Absolute site URL used for canonicals, OG images and structured data. */
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://savora-restaurant.vercel.app',
 
-  currency: 'USD',
+  currency: 'VND',
   /** Tax rate in basis points applied to the item subtotal at checkout. */
   taxRateBps: 500, // 5%
 
@@ -82,7 +82,9 @@ export const restaurantConfig = {
       'Binh Thanh',
       'Thu Duc City',
     ],
-    feeCents: 500, // flat $5.00
+    // Converted from the former US$5 fee at 26,186.832633 VND/USD on
+    // 2026-08-08, rounded to a customer-friendly 1,000₫.
+    feeCents: 131_000,
   },
 
   social: {

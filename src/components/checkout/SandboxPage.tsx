@@ -41,9 +41,9 @@ export default function SandboxPage({ publicCode, accessToken, totals }: Sandbox
       <Calendar size={28} className={styles.icon} />
       <h1 className={styles.title}>Sandbox Payment</h1>
       <p className={styles.text}>
-        Stripe is not configured in this environment, so Savora is running in{' '}
+        PayOS is not configured in this environment, so Savora is running in{' '}
         <strong>demo mode</strong>. Simulating the payment below runs the exact same
-        server-side payment-confirmation path the Stripe webhook would trigger — this is not a
+        server-side payment-confirmation path the PayOS webhook would trigger — this is not a
         client-side “paid” state.
       </p>
 

@@ -166,7 +166,7 @@ export default function MenuItemEditor({ item, categories }: MenuItemEditorProps
           </label>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
             <label className={styles.field}>
-              <span className={styles.label}>Price (USD cents)</span>
+              <span className={styles.label}>Price (VND)</span>
               <input
                 type="number"
                 min={0}
@@ -303,7 +303,7 @@ export default function MenuItemEditor({ item, categories }: MenuItemEditorProps
                       style={{ width: '110px' }}
                       value={option.priceDeltaCents}
                       onChange={(e) => updateOption(gi, oi, { priceDeltaCents: Number(e.target.value) })}
-                      title="Price delta in USD cents"
+                      title="Price delta in VND"
                     />
                     <label className={styles.field} style={{ flexDirection: 'row', alignItems: 'center', gap: '0.3rem' }}>
                       <input

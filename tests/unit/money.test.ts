@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { percentOfCents } from '@/lib/money';
+import { formatCents, percentOfCents } from '@/lib/money';
 
 describe('money helpers', () => {
   it('computes percentages in integer cents without float drift', () => {
@@ -8,5 +8,9 @@ describe('money helpers', () => {
     expect(percentOfCents(1, 500)).toBe(0); // 0.05 → 0
     expect(percentOfCents(1234, 500)).toBe(62); // 61.7 → 62 (round half up)
     expect(percentOfCents(1000, 250)).toBe(25);
+  });
+
+  it('formats VND integer amounts without dividing by 100', () => {
+    expect(formatCents(1_100_000, 'VND')).toMatch(/1,100,000/);
   });
 });

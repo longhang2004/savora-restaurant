@@ -13,9 +13,9 @@ subscriptions, enterprise inventory, or microservices.
 - Next.js 16.2.6 App Router, React 19.2.4, TypeScript in strict mode.
 - PostgreSQL with Drizzle ORM; migrations and deterministic seed data live in
   `db/`.
-- Zod validates server inputs. Money is integer cents; the configured currency
-  is USD and tax is configured in basis points.
-- Stripe Checkout and webhook support are optional integrations. Resend is an
+- Zod validates server inputs. Money is integer VND; legacy `*_cents` names are
+  retained only for schema compatibility, and tax is configured in basis points.
+- PayOS payment links and checksum-verified webhooks are optional integrations. Resend is an
   optional transactional-email provider. Supabase Auth is the production admin
   provider; a gated demo credential provider supports local demos.
 - CSS Modules plus the existing dark-luxury Savora design system; Framer Motion
@@ -56,8 +56,8 @@ Admin pages: `/admin`, `/admin/login`, `/admin/reservations`, `/admin/orders`,
 `/admin/menu`, and `/admin/menu/[itemId]`.
 
 API routes: `GET /api/reservations/availability` and
-`POST /api/webhooks/stripe`. The webhook route verifies the raw Stripe body
-signature before calling the payment service.
+`POST /api/webhooks/payos`. The webhook route verifies the PayOS checksum before
+calling the payment service.
 
 Metadata routes include `/sitemap.xml` and `/robots.txt`; admin routes are
 protected and marked `noindex`.
@@ -73,7 +73,7 @@ protected and marked `noindex`.
   advance-booking limits;
 - scheduled pickup/delivery orders are accepted only in configured service
   periods and up to 30 days ahead;
-- supported delivery districts, delivery fee, USD currency, and 5% tax.
+- supported delivery districts, delivery fee, VND currency, and 5% tax.
 
 Database timestamps are UTC `timestamptz`. Restaurant-local dates and wall-clock
 times are converted with `src/lib/time.ts`. In particular, a checkout
@@ -82,7 +82,7 @@ City on the server, independent of the customer's browser timezone. Local-day
 queries use half-open `[startOfDay, startOfNextDay)` bounds.
 
 Server environment parsing is in `src/config/env.ts`. `DATABASE_URL` and a
-32-character `SESSION_SECRET` are required. Stripe, Resend, Supabase, and demo
+32-character `SESSION_SECRET` are required. PayOS, Resend, Supabase, and demo
 variables are optional. `DEMO_MODE=true` is ignored by production runtimes;
 the Playwright harness has a separate loopback-only marker so it can test the
 production build with local demo data. Supabase login uses only the project URL
@@ -96,11 +96,13 @@ The schema in `src/lib/db/schema.ts` contains:
   `menu_item_modifier_groups`;
 - `dining_tables`, `reservations`, and `reservation_tables`;
 - `orders`, `order_items`, `order_item_modifiers`, and `payments`;
-- `stripe_webhook_events`, `contact_inquiries`, `newsletter_subscribers`, and
+- `payos_webhook_events`, legacy `stripe_webhook_events`, `contact_inquiries`, `newsletter_subscribers`, and
   `admin_profiles`.
 
-Migrations currently include the initial schema (`0000`) and the checkout
-fingerprint column (`0001`). Seed data creates four menu categories, fourteen
+Migrations include the initial schema (`0000`), checkout fingerprint (`0001`),
+and the VND/PayOS conversion (`0002`). Migration `0002` converts the former
+USD-cent catalog and snapshots at a pinned 26,186.832633 VND/USD reference rate,
+rounding menu prices to 1,000₫. Seed data creates four menu categories, fourteen
 menu items, modifier groups/options, six tables, relative-date reservations,
 demo orders, and sample contact/newsletter records.
 
@@ -139,24 +141,24 @@ the server.
 a transaction. Matching retries resume the existing order; a reused key with a
 different fingerprint is rejected. Restaurant-local scheduled times are stored
 as UTC instants and are validated against the service periods and 30-day
-horizon. Stripe line items include item prices, delivery fee, and tax; Stripe
-retry handoff reuses an open session or creates a deterministic retry session
-after an expired/failed handoff. A completed Stripe Session is terminal for
-payment-attempt creation even if the webhook has not updated the DB yet; the
-retry goes to the tokenized success destination instead. Existing retries load
+horizon. PayOS links include item prices, delivery fee, and tax. Retry handoff
+reuses a pending link; only `CANCELLED`, `EXPIRED`, or `FAILED` links receive a
+new provider order code and replacement link. `PAID` and `PROCESSING` links are
+terminal for payment-attempt creation even if the webhook has not updated the DB
+yet; the retry goes to the tokenized success destination instead. Existing retries load
 immutable `order_items` snapshots and persisted fees/tax instead of repricing
 the live menu; a DB-paid retry also returns the tokenized success destination
-without creating another Stripe Session.
-Stripe success and cancellation returns carry the same server-derived HMAC
+without creating another payment link.
+PayOS success and cancellation returns carry the same server-derived HMAC
 token bound to the order id and public code; a valid cancellation return
 prefills/resumes the original checkout identity, while public order code alone
 cannot resume payment or access order data.
 
 `markOrderPaid()` in `src/features/payments/service.ts` is the only payment
 confirmation path. Its atomic guard is idempotent and only permits unpaid,
-active orders to become paid. A signed Stripe `checkout.session.completed`
-webhook also validates order/public-code identity, session identity, customer
-email when supplied, payment status, amount, and currency before marking paid.
+active orders to become paid. A signed PayOS webhook validates the active provider
+order code, payment-link id, bank-transfer reference, amount, and currency before
+marking paid.
 The demo sandbox calls the same confirmation service and is disabled in
 production.
 
@@ -204,8 +206,8 @@ Copy `.env.example` to `.env.local`, provide local `DATABASE_URL` and
 db:local` starts embedded PostgreSQL, applies migrations, and seeds demo data;
 `pnpm dev` serves the app.
 
-Production requires a managed PostgreSQL connection and session secret. Stripe
-keys plus a webhook secret enable real payments; Supabase variables plus a
+Production requires a managed PostgreSQL connection and session secret. PayOS
+payment-channel credentials plus a confirmed webhook enable real payments; Supabase variables plus a
 staff profile enable production admin login; Resend variables enable email
 delivery. Without those external integrations, the local demo still exercises
 the core reservation, order, payment-sandbox, and admin flows.
@@ -213,7 +215,7 @@ the core reservation, order, payment-sandbox, and admin flows.
 ## Deliberate limitations
 
 Savora is single-restaurant and single-currency. The repository tests do not
-make live Stripe, Supabase, or Resend calls. There is no refund/chargeback,
+make live PayOS, Supabase, or Resend calls. There is no refund/chargeback,
 multi-location inventory, or customer account/order-history subsystem. Blog
 article HTML is static repository content and must be sanitized before any CMS
 or user-authored content is introduced.

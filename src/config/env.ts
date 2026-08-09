@@ -1,7 +1,7 @@
 /**
  * Server-only environment validation.
  *
- * Imported exclusively by server modules (database client, auth, Stripe,
+ * Imported exclusively by server modules (database client, auth, PayOS,
  * email). Throws a descriptive error at startup when required variables
  * are missing so misconfiguration is caught early.
  */
@@ -15,8 +15,9 @@ const envSchema = z.object({
     .string()
     .min(32, 'SESSION_SECRET must be at least 32 characters'),
 
-  STRIPE_SECRET_KEY: z.string().optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  PAYOS_CLIENT_ID: z.string().optional(),
+  PAYOS_API_KEY: z.string().optional(),
+  PAYOS_CHECKSUM_KEY: z.string().optional(),
 
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
